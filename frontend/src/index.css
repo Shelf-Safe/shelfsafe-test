@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { height: 100%; }
+body { background: #f9fafb; -webkit-font-smoothing: antialiased; }
+
+/* Sidebar: hide desktop sidebar on small viewports (override in Dashboard.css for 768px+) */
+@media (max-width: 1023px) {
+  .sidebar { display: none !important; }
+}

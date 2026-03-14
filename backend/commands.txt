@@ -1,0 +1,54 @@
+npm install jsonwebtoken@latest
+npm install multer@latest
+npm audit fix  || npm audit fix --force
+npm audit
+npm install nodemailer@latest
+npm uninstall xlsx
+npm install https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+npm cache clean --force
+npm audit
+
+
+
+npm install vite@latest
+
+
+
+If want to run in another machine first time , follow these commands 
+
+you have to open different terminals 
+
+Terminbal 1
+
+cd backend
+npm install
+npm run dev
+
+
+it should give output "Server running on port 5000
+                        MongoDB connected successfully"
+
+
+
+Terminal 2 
+
+cd frontend
+npm install
+npm run dev
+
+It should through local host to run application
+
+
+if it throws error
+" Operation not permitted"
+
+then run 
+pwd (print working directory)
+ls (list)
+rm -rf node_modules package-lock.json. (these force delete the already corrupted dependencies )
+
+npm install
+
+npm run dev
+
+testing-automation-via-github-5
