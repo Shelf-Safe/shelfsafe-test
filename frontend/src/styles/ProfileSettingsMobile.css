@@ -1,0 +1,72 @@
+@media (max-width: 1023px) {
+  .ps-shell.mobile-menu .ps-panel {
+    display: none;
+  }
+
+  .ps-shell.mobile-panel .ps-sidebar {
+    display: none;
+  }
+
+  .ps-panel-inner {
+    max-width: 100% !important;
+  }
+
+  .ps-panel {
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .ps-account-wrap {
+    padding: 0 16px 24px;
+  }
+
+  .ps-account-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px !important;
+    padding-top: 0;
+  }
+
+  .ps-account-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .ps-account-profile {
+    gap: 12px;
+    margin-bottom: 20px !important;
+  }
+
+  .ps-account-avatar {
+    width: 72px !important;
+    height: 72px !important;
+    font-size: 24px !important;
+  }
+
+  .ps-account-name {
+    font-size: 18px !important;
+    line-height: 1.2;
+  }
+
+  .ps-account-role {
+    font-size: 14px !important;
+    margin-top: 4px;
+  }
+
+  .ps-account-wrap input {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .ps-account-wrap label {
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ps-sidebar,
+  .ps-panel {
+    display: block !important;
+  }
+}

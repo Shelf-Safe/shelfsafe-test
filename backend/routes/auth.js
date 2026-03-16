@@ -50,6 +50,7 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        orgId: user.orgId,
       },
     });
   } catch (error) {
@@ -142,6 +143,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        orgId: user.orgId,
       },
     });
 
@@ -201,6 +203,7 @@ router.post('/verify-2fa', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        orgId: user.orgId,
       },
     });
   } catch (error) {
@@ -232,6 +235,7 @@ router.get('/me', verifyToken, async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        orgId: user.orgId,
       },
     });
   } catch (error) {

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState } from 'react';
 const DataSourceContext = createContext();
 
 export const DataSourceProvider = ({ children }) => {
-  const [useDummy, setUseDummy] = useState(true);
+  const [useDummy, setUseDummy] = useState(false);
 
   return (
     <DataSourceContext.Provider value={{ useDummy, setUseDummy }}>

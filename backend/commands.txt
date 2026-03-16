@@ -48,7 +48,9 @@ ls (list)
 rm -rf node_modules package-lock.json. (these force delete the already corrupted dependencies )
 
 npm install
+npm install @vercel/blob
 
 npm run dev
 
 testing-automation-via-github-5
+vercel-deployment-testing

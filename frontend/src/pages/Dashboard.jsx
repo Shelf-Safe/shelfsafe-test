@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { PosConnectionModal } from '../components/PosConnectionModal';
 import { medicationService } from '../services/medicationService';
+import { posSyncService } from '../services/posSyncService';
 import { computeDonutData, computeBarData, DonutChart, BarChart } from '../components/DashboardCharts';
+
+function totalFromSummary(summary) {
+  if (!summary || typeof summary !== 'object') return 0;
+  return Number(summary.totalImported) || Object.values(summary).reduce((s, v) => s + (Number(v) || 0), 0);
+}
 
 function getPriority(m) {
   if (m.status === 'Out of Stock' || m.status === 'Expiring Soon') return 'High';
@@ -29,6 +36,15 @@ function mapMedication(m) {
   };
 }
 
+function makeActionKey(m) {
+  return [
+    m.id || '',
+    m.sku || '',
+    m.batchLotNumber || '',
+    m.expiryDate || '',
+  ].join('|');
+}
+
 function SortIcon({ className }) {
   return (
     <span className={className} aria-hidden="true">
@@ -46,6 +62,13 @@ const PRIORITY_STYLE = {
   high: { bg: '#fce4e4', color: '#b91c1c' },
 };
 
+function formatLastSync(date) {
+  if (!date) return 'Not synced yet';
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return 'Not synced yet';
+  return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
 export const Dashboard = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -57,6 +80,13 @@ export const Dashboard = () => {
   const [barData, setBarData] = useState([]);
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const [lastSync, setLastSync] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [posConnection, setPosConnection] = useState(null);
+  const [showPosModal, setShowPosModal] = useState(false);
+  const [lastSyncChangedItems, setLastSyncChangedItems] = useState([]);
+  const [dismissedActionKeys, setDismissedActionKeys] = useState([]);
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -67,12 +97,17 @@ export const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    medicationService
-      .getAll({ limit: 100 })
-      .then((res) => {
-        if (cancelled || !res.success) return;
+  const loadDashboard = React.useCallback((options = {}) => {
+    const { silent } = options;
+    if (!silent) setLoading(true);
+    const fetchConnection = posSyncService.getConnection().catch(() => ({ connection: null }));
+    return Promise.all([medicationService.getAll({ limit: 10000, page: 1 }), fetchConnection])
+      .then(([res, connectionRes]) => {
+        const connection = connectionRes?.connection || null;
+        setPosConnection(connection);
+        if (connection?.lastSyncedAt) setLastSync(new Date(connection.lastSyncedAt));
+
+        if (!res.success) return;
         const list = res.data || [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -105,36 +140,108 @@ export const Dashboard = () => {
         setActionItems(sorted.map(({ m }) => mapMedication(m)));
         setDonutData(computeDonutData(list));
         setBarData(computeBarData(list));
+        if (!connection?.lastSyncedAt) setLastSync(new Date());
+        return list.length;
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || 'Failed to load dashboard');
+        if (!silent) setError(err.message || 'Failed to load dashboard');
+        throw err;
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!silent) setLoading(false);
       });
-    return () => { cancelled = true; };
   }, []);
 
-  const filtered = search.trim()
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const handleSyncClick = async () => {
+    if (!posConnection) {
+      setShowPosModal(true);
+      return;
+    }
+    setSyncing(true);
+    setSyncMessage('Syncing latest inventory changes...');
+    try {
+      const result = await posSyncService.sync();
+      setPosConnection(result.connection || posConnection);
+      const imported = result.imported ?? result.summary?.totalImported ?? totalFromSummary(result.summary);
+      setSyncMessage(`Sync complete. ${imported} item${imported !== 1 ? 's' : ''} updated.`);
+      setLastSyncChangedItems(Array.isArray(result.changedItems) ? result.changedItems : []);
+      await loadDashboard({ silent: true });
+    } catch (err) {
+      setSyncMessage(err?.response?.data?.message || err?.message || 'Unable to sync inventory.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await posSyncService.disconnect();
+      setPosConnection(null);
+      setSyncMessage('POS connection removed.');
+      setLastSyncChangedItems([]);
+      await loadDashboard({ silent: true });
+    } catch (err) {
+      setSyncMessage(err?.message || 'Unable to disconnect.');
+    }
+  };
+
+  const handlePosConnected = async (result) => {
+    setPosConnection(result?.connection || null);
+    const imported = result?.imported ?? result?.summary?.totalImported ?? totalFromSummary(result?.summary);
+    setSyncMessage(
+      `Connected to ${result?.connection?.providerName || 'POS'} and synced ${imported} item${imported !== 1 ? 's' : ''}.`
+    );
+    setLastSyncChangedItems(Array.isArray(result?.changedItems) ? result.changedItems : []);
+    setShowPosModal(false);
+    await loadDashboard({ silent: true });
+  };
+
+  const baseFiltered = search.trim()
     ? actionItems.filter((m) =>
         m.medicationName.toLowerCase().includes(search.toLowerCase()) ||
         (m.sku && m.sku.includes(search))
       )
     : actionItems;
 
+  const filtered = baseFiltered.filter((m) => !dismissedActionKeys.includes(makeActionKey(m)));
+
   const priorityOrder = { High: 3, Mid: 2, Low: 1 };
-  const sortedFiltered = [...filtered].sort((a, b) => {
-    if (!sortBy) return 0;
-    if (sortBy === 'expiry') {
-      const diff = (a.expiryDate || 0) - (b.expiryDate || 0);
-      return sortDir === 'asc' ? diff : -diff;
+  const sortedFiltered = (() => {
+    const base = [...filtered];
+    if (!sortBy) {
+      // Default: show synced items at top, and within each group keep High > Mid > Low.
+      const decorated = base.map((m) => {
+        const p = getPriority(m);
+        const pr = priorityOrder[p] ?? 0;
+        const isSynced = lastSyncChangedItems.some(
+          (c) =>
+            (c.medicationName && c.medicationName === m.medicationName) ||
+            (c.sku && c.sku === m.sku)
+        );
+        return { m, pr, isSynced };
+      });
+      decorated.sort((a, b) => {
+        if (a.isSynced !== b.isSynced) return a.isSynced ? -1 : 1;
+        return (b.pr || 0) - (a.pr || 0);
+      });
+      return decorated.map((d) => d.m);
     }
-    if (sortBy === 'priority') {
-      const diff = (priorityOrder[getPriority(b)] ?? 0) - (priorityOrder[getPriority(a)] ?? 0);
-      return sortDir === 'asc' ? diff : -diff;
-    }
-    return 0;
-  });
+    return base.sort((a, b) => {
+      if (sortBy === 'expiry') {
+        const diff = (a.expiryDate || 0) - (b.expiryDate || 0);
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      if (sortBy === 'priority') {
+        const diff = (priorityOrder[getPriority(b)] ?? 0) - (priorityOrder[getPriority(a)] ?? 0);
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      return 0;
+    });
+  })();
 
   const { expiring, expired, highRisk, lowStock } = stats;
 
@@ -160,17 +267,30 @@ export const Dashboard = () => {
 
   return (
     <DashboardLayout>
+      <PosConnectionModal
+        open={showPosModal}
+        onClose={() => setShowPosModal(false)}
+        onConnected={handlePosConnected}
+      />
       <div className="dash">
         <div className="dash-header">
           <h1 className="dash-title">Dashboard</h1>
           <div className="dash-header-actions">
             <div className="dash-header-buttons">
               <Link to="/inventory/add" className="btn btn-outline">Add Medication</Link>
-              <button type="button" className="btn btn-primary">Sync Inventory</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSyncClick}
+                disabled={syncing}
+                aria-busy={syncing}
+              >
+                {syncing ? 'Syncing...' : posConnection ? 'Sync Inventory' : 'Connect POS & Sync'}
+              </button>
             </div>
             <div className="dash-header-sync">
               <span className="dash-header-sync-label">Last Sync</span>
-              <span className="dash-header-sync-time">29 Jan 2026 - 8:45 am</span>
+              <span className="dash-header-sync-time">{formatLastSync(lastSync)}</span>
             </div>
             <select className="dash-header-date" aria-label="Date range">
               <option>Today</option>
@@ -178,21 +298,51 @@ export const Dashboard = () => {
           </div>
         </div>
 
+        <div className="dash-pos-section">
+          <div className="dash-pos-section-inner">
+            <div>
+              <div className="dash-pos-title">POS Connection</div>
+              <div className="dash-pos-desc">
+                {posConnection
+                  ? `Connected to ${posConnection.providerName} as ${posConnection.username}.`
+                  : 'No POS connected yet. Connect a provider to demo first-time inventory sync.'}
+              </div>
+              {syncMessage ? <div className="dash-pos-message">{syncMessage}</div> : null}
+            </div>
+            <div className="dash-pos-buttons">
+              {posConnection ? (
+                <>
+                  <button type="button" className="btn btn-outline" onClick={() => setShowPosModal(true)}>
+                    Change POS
+                  </button>
+                  <button type="button" className="btn dash-btn-disconnect" onClick={handleDisconnect}>
+                    Disconnect
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-outline" onClick={() => setShowPosModal(true)}>
+                  Choose POS
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="dash-cards">
           <div className="dash-card">
-            <div className="dash-card-label">Expiring Medications</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">Expiring</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{expiring}</div>
           </div>
           <div className="dash-card">
-            <div className="dash-card-label">Expired Medications</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">Expired</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{expired}</div>
           </div>
           <div className="dash-card">
-            <div className="dash-card-label">High-Risk Medications</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">High-Risk</span><span className="dash-card-label-b">Medications</span></div>
             <div className="dash-card-num">{highRisk}</div>
           </div>
           <div className="dash-card">
-            <div className="dash-card-label">Low Stock Items</div>
+            <div className="dash-card-label"><span className="dash-card-label-a">Low Stock</span><span className="dash-card-label-b">Items</span></div>
             <div className="dash-card-num">{lowStock}</div>
           </div>
         </div>
@@ -293,12 +443,10 @@ export const Dashboard = () => {
                           aria-label="Delete"
                           onClick={async (e) => {
                             e.stopPropagation();
-                            try {
-                              await medicationService.remove(m.id);
-                              setActionItems((prev) => prev.filter((item) => item.id !== m.id));
-                            } catch (err) {
-                              console.error(err);
-                            }
+                            const key = makeActionKey(m);
+                            setDismissedActionKeys((prev) =>
+                              prev.includes(key) ? prev : [...prev, key]
+                            );
                           }}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

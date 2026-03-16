@@ -32,7 +32,7 @@ function App() {
           <Route path="/inventory/add" element={<ProtectedRoute><AddMedicationPage /></ProtectedRoute>} />
           <Route path="/inventory/:id" element={<ProtectedRoute><MedicationDetailPage /></ProtectedRoute>} />
           <Route path="/inventory/:id/edit" element={<ProtectedRoute><EditMedicationPage /></ProtectedRoute>} />
-          <Route path="/reports"      element={<Reports />} />
+          <Route path="/reports"      element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/profile"      element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/settings"     element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 

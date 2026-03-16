@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
@@ -85,6 +85,8 @@ export const Profile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+  const [previewImage, setPreviewImage] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -110,6 +112,7 @@ export const Profile = () => {
     pharmacyOrganization: profile?.pharmacyOrganization || 'Not provided',
     email: profile?.email || user?.email || 'Not provided',
     phone: profile?.phone || 'Not provided',
+    avatarUrl: previewImage || profile?.avatarUrl || user?.avatarUrl || '',
     createdAt: 'Account available',
     preferences: {
       language: 'English (Canada)',
@@ -119,11 +122,30 @@ export const Profile = () => {
     recentActivity:
       profile?.recentActivity?.length > 0
         ? profile.recentActivity
-            .slice()
-            .reverse()
-            .map((item) => item.action)
+          .slice()
+          .reverse()
+          .map((item) => item.action)
         : ['No recent activity available'],
   };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file.');
+      return;
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+    setPreviewImage(imageUrl);
+    setError('');
+  };
+
 
   const handleLogout = () => {
     logout();
@@ -148,7 +170,9 @@ export const Profile = () => {
                 <h1 className="flex items-center gap-2 text-3xl font-bold text-[#1e1e1e]">
                   Profile
                   <button
-                    onClick={() => navigate('/settings')}
+                    onClick={() =>
+                      navigate(window.innerWidth >= 1024 ? '/settings?section=account' : '/settings')
+                    }
                     className="ml-1 rounded p-1 transition-colors hover:bg-[#f1f1f1]"
                     aria-label="Settings"
                   >
@@ -168,7 +192,9 @@ export const Profile = () => {
                   Logout
                 </button>
                 <button
-                  onClick={() => navigate('/settings?section=account')}
+                  onClick={() =>
+                    navigate(window.innerWidth >= 1024 ? '/settings?section=account' : '/settings')
+                  }
                   className="rounded-lg bg-[#00808d] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#006e79]"
                 >
                   Edit Profile
@@ -179,9 +205,30 @@ export const Profile = () => {
             <div className="flex flex-col gap-5 lg:flex-row">
               <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-[#e6e6e6] bg-white">
                 <div className="flex items-center gap-4 p-6">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#e5e7eb] text-2xl font-bold text-[#1e1e1e]">
-                    {displayProfile.name.charAt(0).toUpperCase()}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAvatarClick}
+                    className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-[#e5e7eb] text-2xl font-bold text-[#1e1e1e] transition hover:opacity-90"
+                    aria-label="Upload profile picture"
+                  >
+                    {displayProfile.avatarUrl ? (
+                      <img
+                        src={displayProfile.avatarUrl}
+                        alt="Profile"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      displayProfile.name.charAt(0).toUpperCase()
+                    )}
+                  </button>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
 
                   <div>
                     <p className="text-2xl font-bold text-[#1e1e1e]">

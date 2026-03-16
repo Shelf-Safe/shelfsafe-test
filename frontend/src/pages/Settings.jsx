@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { ProfileSection } from '../components/ProfileSection';
@@ -7,7 +7,6 @@ import { getProfile } from '../services/profileService';
 
 export const Settings = () => {
   const { logout, updateUser } = useAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [profile, setProfile] = useState(null);
@@ -38,58 +37,31 @@ export const Settings = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
   };
 
   const section = searchParams.get('section');
 
   return (
     <DashboardLayout>
-      <div className="profile-page">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-          }}
-        >
-          <div>
-            <h1 className="profile-page-title" style={{ marginBottom: '6px' }}>
-              Settings
-            </h1>
-            <p style={{ color: '#666', margin: 0 }}>
-              Manage your account settings and profile details.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => navigate('/profile')}
-          >
-            Back to Profile
-          </button>
-        </div>
-
+      <div className="p-0">
         {loading ? (
-          <div className="dashboard-section">
-            <p>Loading settings...</p>
+          <div className="rounded-xl border border-[#e6e6e6] bg-white p-6 text-sm text-[#636363]">
+            Loading settings...
           </div>
         ) : error ? (
-          <div className="dashboard-section">
-            <p>{error}</p>
+          <div className="rounded-xl border border-[#e6e6e6] bg-white p-6 text-sm text-red-500">
+            {error}
           </div>
         ) : profile ? (
           <ProfileSection
             user={profile}
             onLogout={handleLogout}
             onProfileUpdated={handleProfileUpdated}
-            initialTab={section || 'account'}
+            initialTab={section || null}
           />
         ) : (
-          <div className="dashboard-section">
-            <p>Profile not found.</p>
+          <div className="rounded-xl border border-[#e6e6e6] bg-white p-6 text-sm text-[#636363]">
+            Profile not found.
           </div>
         )}
       </div>

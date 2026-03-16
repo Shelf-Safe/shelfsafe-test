@@ -206,6 +206,7 @@ export const EditMedicationPage = () => {
       return;
     }
     try {
+      // Camera access only works on HTTPS (or localhost). On HTTP deployments it will be blocked by the browser.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
@@ -250,6 +251,7 @@ export const EditMedicationPage = () => {
     setError('');
     setSaving(true);
 
+    // In Dummy mode we don't hit the API. We simply return to details page.
     if (useDummy) {
       navigate(`/inventory/${id}`);
       setSaving(false);
@@ -361,6 +363,161 @@ export const EditMedicationPage = () => {
                     </div>
                   </div>
                 )}
+
+                {photoMode === 'camera' && (
+                  <div className="mt-4">
+                    {cameraError && <div className="mb-2 text-xs text-red-600">{cameraError}</div>}
+
+                    {!cameraActive ? (
+                      <button
+                        type="button"
+                        onClick={startCamera}
+                        className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: '#00808d' }}
+                      >
+                        Start Camera
+                      </button>
+                    ) : (
+                      <>
+                        <video ref={videoRef} className="w-full h-56 object-cover rounded-lg border border-gray-200 bg-black" playsInline />
+                        <canvas ref={canvasRef} className="hidden" />
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={capturePhoto}
+                            className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: '#00808d' }}
+                          >
+                            Capture
+                          </button>
+                          <button
+                            type="button"
+                            onClick={stopCamera}
+                            className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+                          >
+                            Stop
+                          </button>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Note: Browser camera requires HTTPS (or localhost).
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Fields */}
+            <div className="lg:col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelCls}>Medication Name</label>
+                  <input className={inputCls} value={form.medicationName} onChange={(e) => set('medicationName', e.target.value)} placeholder="e.g., Paracetamol Tablets IP 500mg" />
+                </div>
+                <div>
+                  <label className={labelCls}>Brand</label>
+                  <input className={inputCls} value={form.brandName} onChange={(e) => set('brandName', e.target.value)} placeholder="e.g., Tylenol" />
+                </div>
+
+                <div>
+                  <label className={labelCls}>SKU</label>
+                  <input className={inputCls} value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="e.g., TYL-500-50CT" />
+                </div>
+                <div>
+                  <label className={labelCls}>Barcode</label>
+                  <input className={inputCls} value={form.barcodeData} onChange={(e) => set('barcodeData', e.target.value)} placeholder="e.g., 1234567890" />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Lot / Batch Number</label>
+                  <input className={inputCls} value={form.batchLotNumber} onChange={(e) => set('batchLotNumber', e.target.value)} placeholder="e.g., LOT202601" />
+                </div>
+                <div>
+                  <label className={labelCls}>Current Stock</label>
+                  <input className={inputCls} value={form.currentStock} onChange={(e) => set('currentStock', e.target.value)} placeholder="e.g., 120" />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Category</label>
+                  <SelectWrapper>
+                    <select className={selectCls} value={form.category} onChange={(e) => set('category', e.target.value)}>
+                      <option value="">Select</option>
+                      {CATEGORY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </SelectWrapper>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Risk</label>
+                  <SelectWrapper>
+                    <select className={selectCls} value={form.risk} onChange={(e) => set('risk', e.target.value)}>
+                      <option value="">Select</option>
+                      {RISK_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </SelectWrapper>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Shelf ID</label>
+                  <SelectWrapper>
+                    <select className={selectCls} value={form.shelfId} onChange={(e) => set('shelfId', e.target.value)}>
+                      <option value="">Select</option>
+                      {SHELF_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </SelectWrapper>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Status</label>
+                  <input className={inputCls} value={form.status} onChange={(e) => set('status', e.target.value)} placeholder="e.g., In Stock" />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Expiry Month</label>
+                  <SelectWrapper>
+                    <select className={selectCls} value={form.expiryMonth} onChange={(e) => set('expiryMonth', e.target.value)}>
+                      {MONTHS.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </SelectWrapper>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Expiry Year</label>
+                  <SelectWrapper>
+                    <select className={selectCls} value={form.expiryYear} onChange={(e) => set('expiryYear', e.target.value)}>
+                      {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </SelectWrapper>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Supplier</label>
+                  <input className={inputCls} value={form.supplierName} onChange={(e) => set('supplierName', e.target.value)} placeholder="e.g., LD Supply" />
+                </div>
+                <div>
+                  <label className={labelCls}>Supplier Contact</label>
+                  <input className={inputCls} value={form.supplierContact} onChange={(e) => set('supplierContact', e.target.value)} placeholder="e.g., +1-555-0101 or email" />
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/inventory/${id}`)}
+                  className="px-5 py-2.5 rounded-lg text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-60"
+                  style={{ backgroundColor: '#00808d' }}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </div>
           </div>

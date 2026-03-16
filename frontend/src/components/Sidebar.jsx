@@ -159,7 +159,7 @@ export const Sidebar = ({ mobileHeaderRight }) => {
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{
-          width: '80%',
+          width: '90%',
           backgroundColor: '#fff',
           borderRight: '1px solid #e5e7eb',
           borderRadius: '45px',
@@ -174,7 +174,7 @@ export const Sidebar = ({ mobileHeaderRight }) => {
             iconAlwaysTeal
           />
         </div>
-        <div className="flex-shrink-0 p-4 pt-0 flex justify-center">
+        <div className="flex-shrink-0 p-4 pt-0 flex justify-center m-12">
           <button
             type="button"
             onClick={handleMobileLogout}

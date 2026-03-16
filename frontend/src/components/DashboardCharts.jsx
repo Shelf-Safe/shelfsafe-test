@@ -169,7 +169,7 @@ export function BarChart({ data }) {
             </filter>
           </defs>
           {ySteps.map((v, i) => (
-            <line key={i} x1={0} y1={chartH - (v / maxVal) * chartH} x2={chartW} y2={chartH - (v / maxVal) * chartH} stroke="#e5e7eb" strokeWidth={1} />
+            <line key={i} x1={0} y1={chartH - (v / maxVal) * chartH} x2={chartW} y2={chartH - (v / maxVal) * chartH} stroke="#D9D9D9" strokeWidth={1.5} />
           ))}
           {barData.map((b, i) => {
             const x = gap + i * (barW + gap);
