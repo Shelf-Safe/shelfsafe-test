@@ -5,8 +5,12 @@ export async function fetchImageBufferFromUrl(sourceImageUrl) {
 
   const response = await axios.get(sourceImageUrl, {
     responseType: 'arraybuffer',
-    timeout: 8000,
-    maxRedirects: 3
+    timeout: 5000,
+    maxRedirects: 3,
+    headers: {
+      Accept: 'image/*,*/*;q=0.8',
+      'User-Agent': 'ShelfSafeScanAPI/1.0'
+    }
   });
 
   const contentType = String(response.headers?.['content-type'] || '');

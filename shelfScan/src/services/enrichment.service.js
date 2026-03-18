@@ -1,7 +1,7 @@
 import { looksLikeGs1Payload, parseGs1Text } from './gs1.service.js';
 import { fetchDrugProductById } from './health-canada.service.js';
 import { buildNormalizedResponse } from './response-mapper.service.js';
-import { getSeedProductByHealthCanadaId, resolveHealthCanadaIdFromBarcode } from './seed.service.js';
+import { getSeedProductByHealthCanadaId, guessSeedProductFromImageUrl, resolveHealthCanadaIdFromBarcode } from './seed.service.js';
 
 function normalizeBarcodeText(rawText) {
   return String(rawText || '').replace(/\s+/g, '').trim();
@@ -35,7 +35,7 @@ export async function enrichScan({ rawText, manualOverrides = {}, sourceImageUrl
 
   let seedProduct = healthCanadaDrugProductId
     ? getSeedProductByHealthCanadaId(healthCanadaDrugProductId)
-    : null;
+    : guessSeedProductFromImageUrl(sourceImageUrl);
 
   if (!healthCanadaDrugProductId && seedProduct?.healthCanadaDrugProductId) {
     healthCanadaDrugProductId = seedProduct.healthCanadaDrugProductId;
@@ -46,7 +46,6 @@ export async function enrichScan({ rawText, manualOverrides = {}, sourceImageUrl
   }
 
   let healthCanadaProduct = null;
-
   if (healthCanadaDrugProductId) {
     try {
       healthCanadaProduct = await fetchDrugProductById(healthCanadaDrugProductId);
@@ -59,8 +58,7 @@ export async function enrichScan({ rawText, manualOverrides = {}, sourceImageUrl
     warnings.push('Health Canada API did not return a product. Seed/demo data is doing more of the work for this response.');
   }
 
-  seedProduct =
-    seedProduct || getSeedProductByHealthCanadaId(healthCanadaProduct?.drug_code || healthCanadaDrugProductId);
+  seedProduct = seedProduct || getSeedProductByHealthCanadaId(healthCanadaProduct?.drug_code || healthCanadaDrugProductId);
 
   if (!seedProduct) {
     warnings.push('No seed/demo product mapping was found. The response may need manual completion for UI-only fields.');

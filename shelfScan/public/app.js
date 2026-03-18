@@ -264,7 +264,7 @@ runButton.addEventListener('click', async () => {
         body: JSON.stringify({
           decodedText: decodedText.value.trim(),
           manualOverrides: manualOverrides.value.trim(),
-          sourceImageUrl: sourceImageUrl.value.trim() || null
+          sourceImageUrl: hasDecodedText ? null : (sourceImageUrl.value.trim() || null)
         }),
         signal: controller.signal
       });
@@ -301,7 +301,7 @@ runButton.addEventListener('click', async () => {
     renderPayload(payload);
   } catch (error) {
     const message = error.name === 'AbortError'
-      ? 'The request took too long. On Vercel, image decoding can stall; use the browser-side decode or the sample buttons.'
+      ? 'The request took too long. On Vercel, server image decoding is limited. Use decoded text, the sample buttons, or a known Blob URL that matches seed data.'
       : error.message;
     renderError(message);
   } finally {
