@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShelfSafe Scan API Tester</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .camera-panel { margin-top: 12px; }
+      .camera-actions { display:flex; gap:10px; flex-wrap:wrap; margin: 10px 0; }
+      video.preview, canvas.preview { width:100%; max-height:220px; border-radius:12px; background:#0f172a; object-fit:contain; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>ShelfSafe Scan API Tester</h1>
+        <p>Upload a barcode or GS1 image, open your device camera, or test with known decoded payloads, and inspect the final response the ShelfSafe app can save. The GS1 sample also includes AI (30) quantity.</p>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h2>Test input</h2>
+          <label>
+            Upload image
+            <input id="imageInput" type="file" accept="image/*" />
+            <div class="helper">Desktop browsers usually open the file picker. Use the camera controls below for direct capture.</div>
+          </label>
+
+          <div class="camera-panel">
+            <div class="camera-actions">
+              <button id="startCameraButton" type="button" class="secondary">Open camera</button>
+              <button id="captureButton" type="button" class="secondary" disabled>Capture frame</button>
+              <button id="stopCameraButton" type="button" class="secondary" disabled>Stop camera</button>
+            </div>
+            <video id="cameraPreview" class="preview" autoplay playsinline muted hidden></video>
+            <canvas id="captureCanvas" class="preview" hidden></canvas>
+            <div id="cameraStatus" class="helper">Camera not started.</div>
+          </div>
+
+          <img id="preview" class="preview" alt="Preview" hidden />
+
+          <label>
+            Optional decoded text override
+            <textarea id="decodedText" placeholder="Example GS1 raw text or barcode value"></textarea>
+          </label>
+
+          <label>
+            Optional manual overrides JSON
+            <textarea id="manualOverrides">{
+  "quantity": 18,
+  "shelfId": "Shelf-B2"
+}</textarea>
+          </label>
+
+          <div class="actions">
+            <button id="runButton">Resolve scan</button>
+            <button id="claritinButton" class="secondary">Load Claritin sample</button>
+          </div>
+          <div class="actions">
+            <button id="dayquilButton" class="secondary">Load DayQuil sample</button>
+            <button id="clearButton" class="secondary">Clear</button>
+          </div>
+        </section>
+
+        <section>
+          <div class="summary-grid">
+            <article class="card">
+              <h3>Summary</h3>
+              <div id="summary">Run a scan to see the parsed product, lot, and UI record.</div>
+            </article>
+            <article class="card">
+              <h3>Warnings</h3>
+              <div id="warnings">No warnings yet.</div>
+            </article>
+          </div>
+
+          <article class="card">
+            <div class="tags">
+              <span class="tag">Health Canada enrichment</span>
+              <span class="tag">Seed fallback</span>
+              <span class="tag">ShelfSafe-ready payload</span>
+            </div>
+            <pre id="result">No response yet.</pre>
+          </article>
+        </section>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
