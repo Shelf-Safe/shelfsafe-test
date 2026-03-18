@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShelfSafe Landing Page</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <!-- UPDATED LOGO -->
+      <a href="#top" class="brand"><img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/logo.png" alt="ShelfSafe" /></a>
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a href="#solution">Solution</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#team">Team</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <button class="menu-toggle" aria-label="Toggle menu">☰</button>
+    </div>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="#solution">Solution</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#team">Team</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-overlay"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">KEEP STOCK SMART</span>
+          <h1>Know your inventory,<br><span>Trust your shelves</span></h1>
+          <p>
+            ShelfSafe helps pharmacies prevent expired medications, reduce waste, and ensure critical products stay available with a consistent manual shelf-check alternative.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#contact">Get Started Today!</a>
+            <a class="btn btn-secondary" href="#pricing">See Pricing</a>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <img class="hero-person" src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/man-image.png" alt="" />
+          <div class="screen-card main-screen">
+            <!-- UPDATED GRAPH SCREEN -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Graph-screen.png" alt="Dashboard overview" />
+          </div>
+          <div class="screen-card report-screen">
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/report-Screen.png" alt="Reports screen" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="solution" class="section solution-section">
+      <div class="container">
+        <div class="panel solution-panel">
+          <div class="solution-media">
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/solution-photo.png" alt="Pharmacy shelf audit" />
+          </div>
+          <div class="solution-copy">
+            <span class="chip">SOLUTION</span>
+            <h2>Transform your inventory into safer shelves</h2>
+            <p>
+              In Vancouver alone, there are over 238 pharmacies managing thousands of medications every day. Yet outdated inventory processes cause nearly 10% of products to expire before being sold.
+            </p>
+            <p>
+              Expired medications are not regular waste. They must be incinerated, and when mishandled, they can pollute soil, drainage systems, and surrounding environments—creating serious environmental and compliance risks.
+            </p>
+            <p>
+              <strong>ShelfSafe</strong> helps pharmacies prevent expired medications, reduce waste, and ensure stored products are always available without manual shelf checks.
+            </p>
+            <a class="btn btn-pill" href="#contact">Subscribe <span>→</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section workflow-section">
+      <div class="container workflow-wrap">
+        <div class="section-heading center">
+          <span class="section-mini">ShelfSafe</span>
+          <h2>How it works?</h2>
+        </div>
+        <div class="workflow-grid">
+          <div class="workflow-visual">
+            <!-- <div class="blob blob-one"></div>
+            <div class="blob blob-two"></div> -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/med-blob.png" alt="Medication illustration" />
+            <a class="btn btn-pill small" href="#contact">Subscribe <span>→</span></a>
+          </div>
+          <div class="accordion" id="accordion">
+            <article class="accordion-item active">
+              <button class="accordion-trigger" type="button">
+                <span class="step-num">01</span>
+                <span class="step-title">Monitor your inventory automatically</span>
+                <span class="step-icon">⌄</span>
+              </button>
+            </article>
+            <article class="accordion-item">
+              <button class="accordion-trigger" type="button">
+                <span class="step-num">02</span>
+                <span class="step-title">Get alerts before issues happen</span>
+                <span class="step-icon">⌄</span>
+              </button>
+              <div class="accordion-content">
+                <p>Receive timely notifications for low stock, expiring lots, and inventory risks before they become expensive problems.</p>
+              </div>
+            </article>
+            <article class="accordion-item">
+              <button class="accordion-trigger" type="button">
+                <span class="step-num">03</span>
+                <span class="step-title">Ensure patient safety</span>
+                <span class="step-icon">⌄</span>
+              </button>
+              <div class="accordion-content">
+                <p>Make safer dispensing decisions with better visibility into item freshness, movement, and overall inventory health.</p>
+              </div>
+            </article>
+            <article class="accordion-item">
+              <button class="accordion-trigger" type="button">
+                <span class="step-num">04</span>
+                <span class="step-title">Minimize environmental impact</span>
+                <span class="step-icon">⌄</span>
+              </button>
+              <div class="accordion-content">
+                <p>Reduce unnecessary disposal of expired medications and limit avoidable pharmacy waste.</p>
+              </div>
+            </article>
+            <article class="accordion-item">
+              <button class="accordion-trigger" type="button">
+                <span class="step-num">05</span>
+                <span class="step-title">Optimize financial performance</span>
+                <span class="step-icon">⌄</span>
+              </button>
+              <div class="accordion-content">
+                <p>Protect your margins by cutting preventable losses, reducing manual work, and improving stock decisions.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section features-section">
+      <div class="container">
+        <div class="section-heading center">
+          <span class="section-mini">ShelfSafe</span>
+          <h2>Features</h2>
+        </div>
+
+        <div class="feature-row top-row">
+          <div class="device-card large-device">
+            <div class="device-topbar"></div>
+            <!-- UPDATED GRAPH SCREEN -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Graph-screen.png" alt="Dashboard screen" />
+          </div>
+          <ul class="feature-list feature-list-right">
+            <li>Expiry &amp; Risk Monitoring.</li>
+            <li>Inventory Health Overview.</li>
+            <li>Action-Driven Alerts &amp; Tracking.</li>
+          </ul>
+        </div>
+
+        <div class="feature-row middle-row">
+          <ul class="feature-list feature-list-left">
+            <li>Flexible Inventory Input.</li>
+            <li>Advanced Filtering &amp; Search.</li>
+            <li>Batch &amp; Expiry-Level Tracking.</li>
+          </ul>
+          <div class="device-card small-device">
+            <div class="device-topbar"></div>
+            <!-- UPDATED INVENTORY SCREEN -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Inventory-Screen.png" alt="Inventory screen" />
+          </div>
+        </div>
+
+        <div class="feature-row bottom-row">
+          <div class="device-card medium-device">
+            <div class="device-topbar"></div>
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/report-Screen-1.png" alt="Reports screen" />
+          </div>
+          <ul class="feature-list feature-list-right lower-list">
+            <li>Generate different types of Reports.</li>
+            <li>Share, download and print Reports.</li>
+            <li>Maintain a report history.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="team" class="section team-section">
+      <div class="container">
+        <div class="section-heading center">
+          <h2>Our team</h2>
+        </div>
+        <div class="team-grid top-team-grid">
+          <article class="team-card">
+            <span class="role-badge pm">PM</span>
+             <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/gurri.png" alt="Gurpreet Singh" />
+            <h3>Gurpreet Singh</h3>
+            <p>Full-Stack Developer</p>
+          </article>
+          <article class="team-card">
+            <span class="role-badge">Lead</span>
+            <!-- UPDATED PRISCILA -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Priscila.png" alt="Priscila Mayrink" />
+            <h3>Priscila Mayrink</h3>
+            <p>UI/UX Designer</p> 
+          </article>
+
+          <article class="team-card">
+            <span class="role-badge">Lead</span>
+            <!-- UPDATED ANMOL -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Anmol.png" alt="Anmol Singh" />
+            <h3>Anmol Singh</h3>
+            <p>Full-Stack Developer</p>
+          </article>
+        </div>
+        <div class="team-grid bottom-team-grid">
+          <article class="team-card">
+            <!-- UPDATED GURRI -->
+           <!-- UPDATED LAURA -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Laura.png" alt="Laura Fridlyand" />
+            <h3>Laura Fridlyand</h3>
+            <p>UI/UX Designer</p>
+          </article>
+          <article class="team-card">
+            <!-- UPDATED DALBIR -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Dalbir 1.png" alt="Dalbir Singh" />
+            <h3>Dalbir Singh</h3>
+            <p>Full-Stack Developer</p>
+          </article>
+
+          <article class="team-card">
+            <!-- UPDATED AMRITPAL -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Amritpal.png" alt="Amritpal Singh" />
+            <h3>Amritpal Singh</h3>
+            <p>Full-Stack Developer</p>
+          </article>
+          <article class="team-card">
+            <!-- UPDATED JEFFERSON -->
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Jefferson.png" alt="Jefferson Uche-Okoro" />
+            <h3>Jefferson Uche-Okoro</h3>
+            <p>Full-Stack Developer</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="contact-section">
+      <div class="contact-overlay"></div>
+      <div class="container contact-wrap">
+        <div class="contact-card">
+          <div class="contact-form-area">
+            <h2>Contact Us!</h2>
+            <p>Have Questions? Let’s Connect.</p>
+            <form class="contact-form">
+              <label>
+                <span>Name</span>
+                <input type="text" placeholder="Your name" />
+              </label>
+              <label>
+                <span>Email</span>
+                <input type="email" placeholder="you@example.com" />
+              </label>
+              <label>
+                <span>Message</span>
+                <textarea rows="4" placeholder="Tell us about your pharmacy needs"></textarea>
+              </label>
+              <button class="btn btn-pill" type="submit">Submit</button>
+            </form>
+          </div>
+          <div class="contact-brand-area">
+            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/logo.png" alt="ShelfSafe" />
+          </div>
+        </div>
+      </div>
+    </section>
+    
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
