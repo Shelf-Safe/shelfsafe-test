@@ -3,7 +3,10 @@ import { env } from '../config/env.js';
 
 const client = axios.create({
   baseURL: env.healthCanadaApiBase,
-  timeout: 15000
+  timeout: 8000,
+  headers: {
+    'User-Agent': 'ShelfSafeScanAPI/1.0'
+  }
 });
 
 export async function fetchDrugProductById(healthCanadaDrugProductId) {

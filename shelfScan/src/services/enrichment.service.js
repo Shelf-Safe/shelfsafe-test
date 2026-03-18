@@ -90,10 +90,7 @@ export async function enrichScan({ rawText, manualOverrides = {}, sourceImageUrl
   return {
     sourceImageUrl,
     warnings,
-    scan: {
-      ...parsedScan,
-      healthCanadaDrugProductId: String(healthCanadaProduct?.drug_code || healthCanadaDrugProductId || '')
-    },
+    scan: parsedScan,
     healthCanada: healthCanadaProduct,
     seedData: seedProduct,
     normalized

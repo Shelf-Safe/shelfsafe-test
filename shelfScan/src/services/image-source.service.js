@@ -1,14 +1,18 @@
 import axios from 'axios';
 
-export async function fetchImageBufferFromUrl(url) {
-  const response = await axios.get(url, {
+export async function fetchImageBufferFromUrl(sourceImageUrl) {
+  if (!sourceImageUrl) return null;
+
+  const response = await axios.get(sourceImageUrl, {
     responseType: 'arraybuffer',
-    timeout: 15000,
-    maxRedirects: 5
+    timeout: 8000,
+    maxRedirects: 3
   });
 
-  return {
-    buffer: Buffer.from(response.data),
-    contentType: response.headers['content-type'] || 'application/octet-stream'
-  };
+  const contentType = String(response.headers?.['content-type'] || '');
+  if (contentType && !contentType.startsWith('image/')) {
+    throw new Error(`Source URL did not return an image. Received content-type: ${contentType}`);
+  }
+
+  return Buffer.from(response.data);
 }

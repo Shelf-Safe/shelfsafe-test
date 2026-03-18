@@ -1,4 +1,5 @@
 const imageInput = document.getElementById('imageInput');
+const sourceImageUrl = document.getElementById('sourceImageUrl');
 const decodedText = document.getElementById('decodedText');
 const manualOverrides = document.getElementById('manualOverrides');
 const runButton = document.getElementById('runButton');
@@ -15,18 +16,6 @@ const stopCameraButton = document.getElementById('stopCameraButton');
 const cameraPreview = document.getElementById('cameraPreview');
 const captureCanvas = document.getElementById('captureCanvas');
 const cameraStatus = document.getElementById('cameraStatus');
-
-let sourceImageUrlInput = document.getElementById('sourceImageUrl');
-if (!sourceImageUrlInput) {
-  const wrapper = document.createElement('div');
-  wrapper.innerHTML = `
-    <label for="sourceImageUrl"><strong>Optional source image URL</strong></label>
-    <input id="sourceImageUrl" type="url" placeholder="https://...public.blob.vercel-storage.com/barcodes/scan.jpg" style="width:100%;padding:12px;border-radius:12px;border:1px solid #d8dee9;margin:8px 0 12px;" />
-  `;
-  const anchor = decodedText.parentElement;
-  anchor.parentElement.insertBefore(wrapper, anchor);
-  sourceImageUrlInput = document.getElementById('sourceImageUrl');
-}
 
 let cameraStream = null;
 let capturedBlob = null;
@@ -62,12 +51,6 @@ async function fileToImageBitmap(file) {
 }
 
 async function blobToImageBitmap(blob) {
-  return await createImageBitmap(blob);
-}
-
-async function urlToImageBitmap(url) {
-  const response = await fetch(url);
-  const blob = await response.blob();
   return await createImageBitmap(blob);
 }
 
@@ -111,12 +94,6 @@ async function tryBrowserDecode() {
 
     if (capturedBlob) {
       const bitmap = await blobToImageBitmap(capturedBlob);
-      return await detectWithBarcodeDetectorFromBitmap(bitmap);
-    }
-
-    const sourceImageUrl = sourceImageUrlInput?.value?.trim();
-    if (sourceImageUrl) {
-      const bitmap = await urlToImageBitmap(sourceImageUrl);
       return await detectWithBarcodeDetectorFromBitmap(bitmap);
     }
 
@@ -170,18 +147,6 @@ imageInput.addEventListener('change', async () => {
     cameraStatus.textContent = `Browser decoder found ${decoded.format || 'a code'}.`;
   } else {
     cameraStatus.textContent = 'No browser-side decode yet. The API will try server decoding.';
-  }
-});
-
-sourceImageUrlInput?.addEventListener('change', async () => {
-  if (decodedText.value.trim()) return;
-  cameraStatus.textContent = 'Trying browser-side decode from URL...';
-  const decoded = await tryBrowserDecode();
-  if (decoded?.rawValue) {
-    decodedText.value = decoded.rawValue;
-    cameraStatus.textContent = `Browser decoder found ${decoded.format || 'a code'} from the URL.`;
-  } else {
-    cameraStatus.textContent = 'No browser-side decode from URL. The API can fetch and process the blob image URL.';
   }
 });
 
@@ -263,7 +228,7 @@ dayquilButton.addEventListener('click', () => {
 clearButton.addEventListener('click', () => {
   imageInput.value = '';
   decodedText.value = '';
-  if (sourceImageUrlInput) sourceImageUrlInput.value = '';
+  sourceImageUrl.value = '';
   manualOverrides.value = '{\n  "quantity": 18,\n  "shelfId": "Shelf-B2"\n}';
   preview.hidden = true;
   captureCanvas.hidden = true;
@@ -276,7 +241,7 @@ clearButton.addEventListener('click', () => {
 
 runButton.addEventListener('click', async () => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   try {
     runButton.disabled = true;
@@ -289,17 +254,17 @@ runButton.addEventListener('click', async () => {
     }
 
     const hasDecodedText = Boolean(decodedText.value.trim());
-    const sourceImageUrl = sourceImageUrlInput?.value?.trim() || null;
+    const hasSourceImageUrl = Boolean(sourceImageUrl.value.trim());
     let response;
 
-    if (hasDecodedText || sourceImageUrl) {
+    if (hasDecodedText || hasSourceImageUrl) {
       response = await fetch('/api/scan/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           decodedText: decodedText.value.trim(),
           manualOverrides: manualOverrides.value.trim(),
-          sourceImageUrl
+          sourceImageUrl: sourceImageUrl.value.trim() || null
         }),
         signal: controller.signal
       });
@@ -313,6 +278,10 @@ runButton.addEventListener('click', async () => {
         formData.append('image', file);
       }
 
+      if (sourceImageUrl.value.trim()) {
+        formData.append('sourceImageUrl', sourceImageUrl.value.trim());
+      }
+
       if (manualOverrides.value.trim()) {
         formData.append('manualOverrides', manualOverrides.value.trim());
       }
@@ -324,15 +293,15 @@ runButton.addEventListener('click', async () => {
       });
     }
 
-    const payload = await response.json();
+    const payload = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(payload.message || 'Request failed.');
+      throw new Error(payload?.message || 'Request failed.');
     }
 
     renderPayload(payload);
   } catch (error) {
     const message = error.name === 'AbortError'
-      ? 'The request took too long. On Vercel, send decodedText or a blob image URL so the server can fetch and process it more reliably.'
+      ? 'The request took too long. On Vercel, image decoding can stall; use the browser-side decode or the sample buttons.'
       : error.message;
     renderError(message);
   } finally {

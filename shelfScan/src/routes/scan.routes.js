@@ -10,6 +10,14 @@ const upload = multer({
   }
 });
 
-router.post('/resolve', upload.single('image'), resolveScanController);
+function conditionalImageUpload(req, res, next) {
+  if (req.is('multipart/form-data')) {
+    return upload.single('image')(req, res, next);
+  }
+
+  return next();
+}
+
+router.post('/resolve', conditionalImageUpload, resolveScanController);
 
 export default router;
