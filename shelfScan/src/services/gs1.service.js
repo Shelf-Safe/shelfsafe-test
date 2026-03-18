@@ -39,6 +39,7 @@ function extractSequentialAIs(text) {
   let index = 0;
 
   while (index < normalized.length) {
+    const previousIndex = index;
     const ai = KNOWN_AI_SEQUENCE.find((candidate) => normalized.startsWith(candidate, index));
     if (!ai) {
       break;
@@ -49,19 +50,20 @@ function extractSequentialAIs(text) {
     if (ai === '01') {
       values[ai] = normalized.slice(index, index + 14);
       index += 14;
-      continue;
-    }
-
-    if (ai === '17') {
+    } else if (ai === '17') {
       values[ai] = normalized.slice(index, index + 6);
       index += 6;
-      continue;
+    } else {
+      const remainingAis = KNOWN_AI_SEQUENCE.filter((candidate) => candidate !== ai);
+      const { value, endIndex } = readUntilNextKnownAi(normalized, index, remainingAis);
+      values[ai] = value;
+      index = endIndex;
     }
 
-    const remainingAis = KNOWN_AI_SEQUENCE.filter((candidate) => candidate !== ai);
-    const { value, endIndex } = readUntilNextKnownAi(normalized, index, remainingAis);
-    values[ai] = value;
-    index = endIndex;
+    if (index <= previousIndex) {
+      console.error('GS1 parser stuck; breaking loop to prevent timeout.', { previousIndex, index, raw: normalized });
+      break;
+    }
   }
 
   return values;
