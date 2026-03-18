@@ -16,6 +16,18 @@ const cameraPreview = document.getElementById('cameraPreview');
 const captureCanvas = document.getElementById('captureCanvas');
 const cameraStatus = document.getElementById('cameraStatus');
 
+let sourceImageUrlInput = document.getElementById('sourceImageUrl');
+if (!sourceImageUrlInput) {
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <label for="sourceImageUrl"><strong>Optional source image URL</strong></label>
+    <input id="sourceImageUrl" type="url" placeholder="https://...public.blob.vercel-storage.com/barcodes/scan.jpg" style="width:100%;padding:12px;border-radius:12px;border:1px solid #d8dee9;margin:8px 0 12px;" />
+  `;
+  const anchor = decodedText.parentElement;
+  anchor.parentElement.insertBefore(wrapper, anchor);
+  sourceImageUrlInput = document.getElementById('sourceImageUrl');
+}
+
 let cameraStream = null;
 let capturedBlob = null;
 
@@ -41,16 +53,136 @@ function setImagePreviewFromFile(file) {
     preview.hidden = true;
     return;
   }
-
   preview.src = URL.createObjectURL(file);
   preview.hidden = false;
 }
 
-imageInput.addEventListener('change', () => {
+async function fileToImageBitmap(file) {
+  return await createImageBitmap(file);
+}
+
+async function blobToImageBitmap(blob) {
+  return await createImageBitmap(blob);
+}
+
+async function urlToImageBitmap(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return await createImageBitmap(blob);
+}
+
+async function detectWithBarcodeDetectorFromBitmap(bitmap) {
+  if (!('BarcodeDetector' in window)) return null;
+
+  const formatsToTry = [
+    ['data_matrix', 'code_128', 'ean_13', 'upc_a', 'upc_e'],
+    ['data_matrix', 'code_128'],
+    ['ean_13', 'upc_a', 'upc_e'],
+    []
+  ];
+
+  for (const formats of formatsToTry) {
+    try {
+      const detector = formats.length ? new BarcodeDetector({ formats }) : new BarcodeDetector();
+      const barcodes = await detector.detect(bitmap);
+      if (Array.isArray(barcodes) && barcodes.length > 0) {
+        const first = barcodes[0];
+        return {
+          rawValue: first.rawValue || '',
+          format: first.format || null
+        };
+      }
+    } catch (error) {
+      // Keep trying other format sets.
+    }
+  }
+
+  return null;
+}
+
+async function tryBrowserDecode() {
+  try {
+    if (decodedText.value.trim()) {
+      return {
+        rawValue: decodedText.value.trim(),
+        format: 'manual-override'
+      };
+    }
+
+    if (capturedBlob) {
+      const bitmap = await blobToImageBitmap(capturedBlob);
+      return await detectWithBarcodeDetectorFromBitmap(bitmap);
+    }
+
+    const sourceImageUrl = sourceImageUrlInput?.value?.trim();
+    if (sourceImageUrl) {
+      const bitmap = await urlToImageBitmap(sourceImageUrl);
+      return await detectWithBarcodeDetectorFromBitmap(bitmap);
+    }
+
+    const [file] = imageInput.files;
+    if (!file) return null;
+    const bitmap = await fileToImageBitmap(file);
+    return await detectWithBarcodeDetectorFromBitmap(bitmap);
+  } catch (error) {
+    return null;
+  }
+}
+
+function renderPayload(payload) {
+  result.textContent = JSON.stringify(payload, null, 2);
+
+  const med = payload.normalized?.medicationRecord;
+  summary.innerHTML = `
+    <strong>${med?.medicationName || 'Unknown product'}</strong><br />
+    Brand: ${med?.brandName || '-'}<br />
+    Barcode: ${med?.barcodeData || '-'}<br />
+    Lot: ${med?.batchLotNumber || '-'}<br />
+    Expiry: ${med?.expiryDate || '-'}<br />
+    Quantity: ${med?.currentStock || '-'}<br />
+    Status: ${med?.status || '-'}
+  `;
+
+  const warningItems = Array.isArray(payload.warnings) && payload.warnings.length
+    ? payload.warnings.map((item) => `<div class="warning">• ${item}</div>`).join('')
+    : 'No warnings.';
+
+  warnings.innerHTML = warningItems;
+}
+
+function renderError(message) {
+  result.textContent = message;
+  summary.textContent = 'Request failed.';
+  warnings.innerHTML = `<div class="warning">• ${message}</div>`;
+}
+
+imageInput.addEventListener('change', async () => {
   const [file] = imageInput.files;
   capturedBlob = null;
   captureCanvas.hidden = true;
   setImagePreviewFromFile(file);
+
+  if (decodedText.value.trim()) return;
+  cameraStatus.textContent = 'Trying browser-side decode...';
+  const decoded = await tryBrowserDecode();
+  if (decoded?.rawValue) {
+    decodedText.value = decoded.rawValue;
+    cameraStatus.textContent = `Browser decoder found ${decoded.format || 'a code'}.`;
+  } else {
+    cameraStatus.textContent = 'No browser-side decode yet. The API will try server decoding.';
+  }
+});
+
+sourceImageUrlInput?.addEventListener('change', async () => {
+  if (decodedText.value.trim()) return;
+  cameraStatus.textContent = 'Trying browser-side decode from URL...';
+  const decoded = await tryBrowserDecode();
+  if (decoded?.rawValue) {
+    decodedText.value = decoded.rawValue;
+    cameraStatus.textContent = `Browser decoder found ${decoded.format || 'a code'} from the URL.`;
+  } else {
+    cameraStatus.textContent = 'No browser-side decode from URL. The API can fetch and process the blob image URL.';
+  }
 });
 
 async function startCamera() {
@@ -89,9 +221,7 @@ function stopCamera() {
 }
 
 async function captureFrame() {
-  if (!cameraStream) {
-    return;
-  }
+  if (!cameraStream) return;
 
   const width = cameraPreview.videoWidth || 1280;
   const height = cameraPreview.videoHeight || 720;
@@ -103,7 +233,15 @@ async function captureFrame() {
   preview.hidden = true;
 
   capturedBlob = await new Promise((resolve) => captureCanvas.toBlob(resolve, 'image/jpeg', 0.95));
-  cameraStatus.textContent = 'Frame captured. Resolve scan to send this image to the API.';
+  cameraStatus.textContent = 'Frame captured. Trying browser-side decode...';
+
+  const decoded = await tryBrowserDecode();
+  if (decoded?.rawValue) {
+    decodedText.value = decoded.rawValue;
+    cameraStatus.textContent = `Browser decoder found ${decoded.format || 'a code'}. Ready to resolve.`;
+  } else {
+    cameraStatus.textContent = 'Frame captured. Browser decode did not succeed; the API will try server decoding.';
+  }
 }
 
 startCameraButton.addEventListener('click', startCamera);
@@ -113,16 +251,19 @@ stopCameraButton.addEventListener('click', stopCamera);
 claritinButton.addEventListener('click', () => {
   decodedText.value = samples.claritin.decodedText;
   manualOverrides.value = JSON.stringify(samples.claritin.manualOverrides, null, 2);
+  cameraStatus.textContent = 'Claritin GS1 sample loaded.';
 });
 
 dayquilButton.addEventListener('click', () => {
   decodedText.value = samples.dayquil.decodedText;
   manualOverrides.value = JSON.stringify(samples.dayquil.manualOverrides, null, 2);
+  cameraStatus.textContent = 'DayQuil barcode sample loaded.';
 });
 
 clearButton.addEventListener('click', () => {
   imageInput.value = '';
   decodedText.value = '';
+  if (sourceImageUrlInput) sourceImageUrlInput.value = '';
   manualOverrides.value = '{\n  "quantity": 18,\n  "shelfId": "Shelf-B2"\n}';
   preview.hidden = true;
   captureCanvas.hidden = true;
@@ -130,64 +271,72 @@ clearButton.addEventListener('click', () => {
   result.textContent = 'No response yet.';
   summary.textContent = 'Run a scan to see the parsed product, lot, and UI record.';
   warnings.textContent = 'No warnings yet.';
+  cameraStatus.textContent = 'Cleared.';
 });
 
 runButton.addEventListener('click', async () => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
   try {
     runButton.disabled = true;
     runButton.textContent = 'Resolving...';
 
-    const formData = new FormData();
-    const [file] = imageInput.files;
-
-    if (capturedBlob) {
-      formData.append('image', capturedBlob, 'camera-capture.jpg');
-    } else if (file) {
-      formData.append('image', file);
+    const browserDecoded = await tryBrowserDecode();
+    if (browserDecoded?.rawValue && !decodedText.value.trim()) {
+      decodedText.value = browserDecoded.rawValue;
+      cameraStatus.textContent = `Using browser-decoded ${browserDecoded.format || 'code'} for the API request.`;
     }
 
-    if (decodedText.value.trim()) {
-      formData.append('decodedText', decodedText.value.trim());
-    }
+    const hasDecodedText = Boolean(decodedText.value.trim());
+    const sourceImageUrl = sourceImageUrlInput?.value?.trim() || null;
+    let response;
 
-    if (manualOverrides.value.trim()) {
-      formData.append('manualOverrides', manualOverrides.value.trim());
-    }
+    if (hasDecodedText || sourceImageUrl) {
+      response = await fetch('/api/scan/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decodedText: decodedText.value.trim(),
+          manualOverrides: manualOverrides.value.trim(),
+          sourceImageUrl
+        }),
+        signal: controller.signal
+      });
+    } else {
+      const formData = new FormData();
+      const [file] = imageInput.files;
 
-    const response = await fetch('/api/scan/resolve', {
-      method: 'POST',
-      body: formData
-    });
+      if (capturedBlob) {
+        formData.append('image', capturedBlob, 'camera-capture.jpg');
+      } else if (file) {
+        formData.append('image', file);
+      }
+
+      if (manualOverrides.value.trim()) {
+        formData.append('manualOverrides', manualOverrides.value.trim());
+      }
+
+      response = await fetch('/api/scan/resolve', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      });
+    }
 
     const payload = await response.json();
-
     if (!response.ok) {
       throw new Error(payload.message || 'Request failed.');
     }
 
-    result.textContent = JSON.stringify(payload, null, 2);
-
-    const med = payload.normalized?.medicationRecord;
-    summary.innerHTML = `
-      <strong>${med?.medicationName || 'Unknown product'}</strong><br />
-      Brand: ${med?.brandName || '-'}<br />
-      Barcode: ${med?.barcodeData || '-'}<br />
-      Lot: ${med?.batchLotNumber || '-'}<br />
-      Expiry: ${med?.expiryDate || '-'}<br />
-      Quantity: ${med?.currentStock || '-'}<br />
-      Status: ${med?.status || '-'}
-    `;
-
-    const warningItems = Array.isArray(payload.warnings) && payload.warnings.length
-      ? payload.warnings.map((item) => `<div class="warning">• ${item}</div>`).join('')
-      : 'No warnings.';
-
-    warnings.innerHTML = warningItems;
+    renderPayload(payload);
   } catch (error) {
-    result.textContent = error.message;
-    summary.textContent = 'Request failed.';
-    warnings.innerHTML = `<div class="warning">• ${error.message}</div>`;
+    const message = error.name === 'AbortError'
+      ? 'The request took too long. On Vercel, send decodedText or a blob image URL so the server can fetch and process it more reliably.'
+      : error.message;
+    renderError(message);
   } finally {
+    clearTimeout(timeoutId);
     runButton.disabled = false;
     runButton.textContent = 'Resolve scan';
   }
