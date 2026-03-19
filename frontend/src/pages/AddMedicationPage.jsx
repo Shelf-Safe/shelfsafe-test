@@ -56,6 +56,7 @@ export const AddMedicationPage = () => {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState('');
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -130,7 +131,7 @@ export const AddMedicationPage = () => {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     if (!form.medicationName.trim()) return setError('Medication name is required.');
     setError('');
     setSaving(true);
@@ -139,12 +140,50 @@ export const AddMedicationPage = () => {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (photoFile) fd.append('photo', photoFile);
       else if (photoUrl) fd.append('photoUrl', photoUrl);
-      await medicationService.create(fd);
-      navigate('/inventory');
+      const response = await medicationService.create(fd);
+      const created = response?.data;
+      if (created?._id) {
+        navigate(`/inventory/${created._id}`, { state: { medication: created } });
+      } else {
+        navigate('/inventory');
+      }
     } catch (err) {
       setError(err.message || 'Failed to save medication.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleScanAndSave = async () => {
+    if (!photoFile && !photoUrl) {
+      setError('Please upload or capture a barcode image first.');
+      return;
+    }
+
+    setError('');
+    setScanning(true);
+    try {
+      const response = await medicationService.scanCreate({
+        photoFile,
+        photoUrl,
+        manualOverrides: {
+          currentStock: form.currentStock,
+          shelfId: form.shelfId,
+          supplierName: form.supplierName,
+          supplierContact: form.supplierContact,
+          category: form.category,
+        },
+      });
+      const created = response?.data;
+      if (created?._id) {
+        navigate(`/inventory/${created._id}`, { state: { medication: created } });
+      } else {
+        navigate('/inventory');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to scan barcode image and save medication.');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -186,8 +225,17 @@ export const AddMedicationPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => navigate('/inventory')} className="px-5 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50">Cancel</button>
+          <button
+            type="button"
+            onClick={handleScanAndSave}
+            disabled={scanning || (!photoFile && !photoUrl)}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+            style={{ backgroundColor: '#0f172a' }}
+          >
+            {scanning ? 'Scanning...' : 'Scan Barcode & Save'}
+          </button>
           <button type="button" onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: '#00808d' }}>
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : 'Save Manually'}
           </button>
         </div>
       </div>

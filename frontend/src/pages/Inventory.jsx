@@ -429,22 +429,19 @@ export const Inventory = () => {
             if (items.length) setMedications((p) => [...items.map(normalizeMedication), ...p]);
           } catch {}
         }}
-        onBarcodeSave={async (photoFile, barcode, format) => {
+        onBarcodeSave={async (photoFile) => {
           try {
-            const r = await medicationService.uploadBarcode(photoFile, barcode, format);
-            const photoUrl = r?.data?.photoUrl || '';
-            const code = r?.data?.barcode || barcode || '';
+            const r = await medicationService.scanCreate({ photoFile });
+            const created = r?.data;
+            if (!created?._id) throw new Error('Medication was created, but no id was returned.');
             setModalOpen(false);
-            navigate('/inventory/add', {
-              state: {
-                prefill: {
-                  sku: code,
-                  barcodeData: code,
-                  photoUrl,
-                },
-              },
+            navigate(`/inventory/${encodeURIComponent(created._id)}`, {
+              state: { medication: created },
             });
-          } catch {}
+          } catch (error) {
+            console.error('Failed to scan and create medication:', error);
+            throw error;
+          }
         }}
       />
     </DashboardLayout>

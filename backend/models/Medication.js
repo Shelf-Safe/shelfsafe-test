@@ -61,7 +61,7 @@ const medicationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['In Stock', 'Low Stock', 'Out of Stock', 'Expiring Soon', 'Expired', 'Recalled', 'Removed', ''],
+      enum: ['In Stock', 'Low Stock', 'Out of Stock', 'Expiring Soon', 'Recalled', ''],
       default: 'In Stock',
     },
     category: {
@@ -77,15 +77,10 @@ const medicationSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    importFileUrl: {
-      type: String,
-      default: '',
-    },
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
-    // Organisation scope — allows shared inventory across a pharmacy org
     orgId: {
       type: String,
       default: '',
@@ -97,20 +92,10 @@ const medicationSchema = new mongoose.Schema(
   }
 );
 
-// Auto-compute status before saving
 medicationSchema.pre('save', function (next) {
   const today = new Date();
   const thirtyDaysOut = new Date();
   thirtyDaysOut.setDate(today.getDate() + 30);
-
-  // If removed, do not overwrite status.
-  if (this.status === 'Removed') return next();
-
-  // Expired takes precedence.
-  if (this.expiryDate && this.expiryDate < today) {
-    this.status = 'Expired';
-    return next();
-  }
 
   if (this.currentStock === 0) {
     this.status = 'Out of Stock';

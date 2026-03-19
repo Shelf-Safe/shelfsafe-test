@@ -1,19 +1,16 @@
-import mongoose from 'mongoose';
 import express from 'express';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
+import { put } from '@vercel/blob';
 import Medication from '../models/Medication.js';
 import { verifyToken } from '../middleware/auth.js';
-import { uploadBufferToBlob } from '../utils/blob.js';
 
 const router = express.Router();
-const { Types } = mongoose;
 
-// Multer: memory storage for bulk import (Excel) and photo uploads
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = [
       'application/vnd.ms-excel',
@@ -22,6 +19,7 @@ const upload = multer({
       'image/jpeg',
       'image/png',
       'image/webp',
+      'image/gif',
     ];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
@@ -31,60 +29,105 @@ const upload = multer({
   },
 });
 
-// ─── Helper ──────────────────────────────────────────────────────────────────
+
+function monthNameFromDate(dateValue) {
+  if (!dateValue) return '';
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', { month: 'long' });
+}
+
+function yearFromDate(dateValue) {
+  if (!dateValue) return '';
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return '';
+  return String(d.getFullYear());
+}
+
+function makeBlobPath(originalName = 'scan-image.jpg') {
+  const safeName = String(originalName || 'scan-image.jpg').replace(/[^a-zA-Z0-9._-]/g, '-');
+  return `barcodes/${Date.now()}-${safeName}`;
+}
+
+async function uploadImageToBlob(file) {
+  if (!file?.buffer) return null;
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not configured on the backend.');
+  }
+
+  const blob = await put(makeBlobPath(file.originalname), file.buffer, {
+    access: 'public',
+    token,
+    contentType: file.mimetype || 'image/jpeg',
+    addRandomSuffix: false,
+  });
+
+  return blob?.url || null;
+}
+
+async function resolveWithShelfScan({ sourceImageUrl, manualOverrides = {} }) {
+  const endpoint = process.env.SHELFSCAN_API_URL || 'https://shelfscan.onrender.com/api/scan/resolve';
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sourceImageUrl,
+      manualOverrides,
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.message || payload?.error || 'ShelfScan failed to resolve the barcode image.');
+  }
+
+  return payload;
+}
+
+function buildMedicationFromShelfScanResult(result, req, fallbackPhotoUrl = '') {
+  const record = result?.normalized?.medicationRecord || {};
+  const seed = result?.seedData || {};
+  const scan = result?.scan || {};
+
+  const expiryDate = record.expiryDate ? new Date(record.expiryDate) : null;
+  const safeExpiryDate = expiryDate && !Number.isNaN(expiryDate.getTime()) ? expiryDate : null;
+
+  return new Medication({
+    medicationName: record.medicationName || seed.medicationName || 'Unknown Medication',
+    brandName: record.brandName || seed.brandName || '',
+    sku: record.barcodeData || scan.barcodeData || seed.barcodeUpc || seed.gtin || '',
+    batchLotNumber: record.batchLotNumber || seed.defaultLotNumber || '',
+    risk: record.risk || seed.risk || '',
+    shelfId: record.shelfId || seed.shelfId || '',
+    expiryMonth: safeExpiryDate ? monthNameFromDate(safeExpiryDate) : '',
+    expiryYear: safeExpiryDate ? yearFromDate(safeExpiryDate) : '',
+    expiryDate: safeExpiryDate,
+    currentStock: Number(record.currentStock || seed.currentStock || 0),
+    supplierName: record.supplierName || seed.supplierName || '',
+    supplierContact: record.supplierContact || seed.supplierContact || '',
+    status: '',
+    category: record.category || seed.category || '',
+    barcodeData: record.barcodeData || scan.barcodeData || seed.barcodeUpc || seed.gtin || '',
+    photoUrl: record.photoUrl || seed.photoUrl || fallbackPhotoUrl || '',
+    addedBy: req.user.userId,
+    orgId: req.user.orgId || 'dummy01',
+  });
+}
+
 function buildExpiryDate(month, year) {
   if (!month || !year) return null;
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const monthIndex = isNaN(month) ? months.indexOf(month) : parseInt(month, 10) - 1;
   if (monthIndex < 0) return null;
-  return new Date(parseInt(year, 10), monthIndex + 1, 0); // last day of month
+  return new Date(parseInt(year, 10), monthIndex + 1, 0);
 }
 
-
-function serializeMedication(doc) {
-  if (!doc) return null;
-  const src = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
-  const mongoId = src && src._id ? String(src._id) : '';
-  const legacyId = src && src.legacyId ? String(src.legacyId) : '';
-  const routeId = mongoId || legacyId || src.sku || src.barcodeData || src.batchLotNumber || '';
-  return {
-    ...src,
-    _id: mongoId,
-    id: mongoId,
-    legacyId,
-    routeId,
-  };
-}
-
-function buildScopedCandidates(rawId, scopeFilter) {
-  const id = String(rawId || '').trim();
-  const candidates = [];
-  if (!id) return candidates;
-  if (Types.ObjectId.isValid(id)) candidates.push({ _id: id, ...scopeFilter });
-  candidates.push({ legacyId: id, ...scopeFilter });
-  candidates.push({ routeId: id, ...scopeFilter });
-  candidates.push({ sku: id, ...scopeFilter });
-  candidates.push({ barcodeData: id, ...scopeFilter });
-  candidates.push({ batchLotNumber: id, ...scopeFilter });
-  return candidates;
-}
-
-async function findScopedMedication(rawId, scopeFilter) {
-  const candidates = buildScopedCandidates(rawId, scopeFilter);
-  for (const filter of candidates) {
-    const med = await Medication.findOne(filter);
-    if (med) return med;
-  }
-  return null;
-}
-
-
-// ─── GET /api/medications ─────────────────────────────────────────────────────
 router.get('/', verifyToken, async (req, res) => {
   try {
     const { search = '', status = '', page = 1, limit = 20 } = req.query;
 
-    // Scope by orgId when available; fall back to addedBy so existing personal records still work
     const scopeFilter = req.user.orgId
       ? { orgId: req.user.orgId }
       : { addedBy: req.user.userId };
@@ -100,46 +143,29 @@ router.get('/', verifyToken, async (req, res) => {
       ];
     }
 
-    const numericPage = Math.max(1, parseInt(page, 10) || 1);
-    const unlimited = String(limit).toLowerCase() === 'all' || parseInt(limit, 10) <= 0;
+    const limitNum = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50000);
+    const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * limitNum;
     const total = await Medication.countDocuments(query);
-
-    let findQuery = Medication.find(query).sort({ createdAt: -1 });
-    let pagination;
-
-    if (!unlimited) {
-      const numericLimit = Math.max(1, parseInt(limit, 10) || 20);
-      const skip = (numericPage - 1) * numericLimit;
-      findQuery = findQuery.skip(skip).limit(numericLimit);
-      pagination = {
-        total,
-        page: numericPage,
-        pages: Math.ceil(total / numericLimit),
-        limit: numericLimit,
-      };
-    } else {
-      pagination = {
-        total,
-        page: 1,
-        pages: total > 0 ? 1 : 0,
-        limit: 'all',
-      };
-    }
-
-    const medications = await findQuery;
-    const serialized = medications.map(serializeMedication);
+    const medications = await Medication.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
 
     res.json({
       success: true,
-      data: serialized,
-      pagination,
+      data: medications,
+      pagination: {
+        total,
+        page: Math.max(parseInt(page, 10) || 1, 1),
+        pages: Math.ceil(total / limitNum),
+        limit: limitNum,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ─── POST /api/medications ────────────────────────────────────────────────────
 router.post('/', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     const {
@@ -153,18 +179,6 @@ router.post('/', verifyToken, upload.single('photo'), async (req, res) => {
     }
 
     const expiryDate = buildExpiryDate(expiryMonth, expiryYear);
-
-    let photoUrl = '';
-    if (req.file) {
-      photoUrl = await uploadBufferToBlob({
-        buffer: req.file.buffer,
-        filename: req.file.originalname || `medication-${Date.now()}.jpg`,
-        contentType: req.file.mimetype,
-        prefix: `medications/${req.user.orgId || req.user.userId || 'user'}`,
-      });
-    } else if (req.body.photoUrl) {
-      photoUrl = String(req.body.photoUrl);
-    }
 
     const med = new Medication({
       medicationName,
@@ -182,40 +196,75 @@ router.post('/', verifyToken, upload.single('photo'), async (req, res) => {
       barcodeData,
       sku,
       batchLotNumber,
-      photoUrl,
+      photoUrl: req.file ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` : (String(req.body.photoUrl || '').trim() || ''),
       addedBy: req.user.userId,
       orgId: req.user.orgId || 'dummy01',
     });
 
     await med.save();
 
-    res.status(201).json({ success: true, data: serializeMedication(med) });
+    res.status(201).json({ success: true, data: med });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ─── GET /api/medications/:id ─────────────────────────────────────────────────
+
+router.post('/scan-create', verifyToken, upload.single('photo'), async (req, res) => {
+  try {
+    const photoUrlFromBody = String(req.body.photoUrl || '').trim();
+    const sourceImageUrl = req.file ? await uploadImageToBlob(req.file) : (photoUrlFromBody || '');
+
+    if (!sourceImageUrl) {
+      return res.status(400).json({ success: false, message: 'A barcode image is required.' });
+    }
+
+    const manualOverrides = {
+      quantity: req.body.currentStock ? Number(req.body.currentStock) : undefined,
+      shelfId: req.body.shelfId || undefined,
+      supplierName: req.body.supplierName || undefined,
+      supplierContact: req.body.supplierContact || undefined,
+      category: req.body.category || undefined,
+    };
+
+    const scanResult = await resolveWithShelfScan({ sourceImageUrl, manualOverrides });
+    const med = buildMedicationFromShelfScanResult(scanResult, req, sourceImageUrl);
+    await med.save();
+
+    res.status(201).json({
+      success: true,
+      data: med,
+      scan: {
+        sourceImageUrl,
+        barcodeImageUrl: sourceImageUrl,
+        resolvedVia: scanResult?.resolvedVia || null,
+        warnings: scanResult?.warnings || [],
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const scopeFilter = req.user.orgId
       ? { orgId: req.user.orgId }
       : { addedBy: req.user.userId };
-    const med = await findScopedMedication(req.params.id, scopeFilter);
+    const med = await Medication.findOne({ _id: req.params.id, ...scopeFilter });
     if (!med) return res.status(404).json({ success: false, message: 'Medication not found' });
-    res.json({ success: true, data: serializeMedication(med) });
+    res.json({ success: true, data: med });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ─── PUT /api/medications/:id ─────────────────────────────────────────────────
 router.put('/:id', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     const scopeFilter = req.user.orgId
       ? { orgId: req.user.orgId }
       : { addedBy: req.user.userId };
-    const med = await findScopedMedication(req.params.id, scopeFilter);
+    const med = await Medication.findOne({ _id: req.params.id, ...scopeFilter });
     if (!med) return res.status(404).json({ success: false, message: 'Medication not found' });
 
     const fields = [
@@ -234,52 +283,36 @@ router.put('/:id', verifyToken, upload.single('photo'), async (req, res) => {
       med.currentStock = parseInt(req.body.currentStock, 10) || 0;
     }
     if (req.file) {
-      med.photoUrl = await uploadBufferToBlob({
-        buffer: req.file.buffer,
-        filename: req.file.originalname || `medication-${med._id}-${Date.now()}.jpg`,
-        contentType: req.file.mimetype,
-        prefix: `medications/${req.user.orgId || req.user.userId || 'user'}`,
-      });
+      med.photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     } else if (req.body.photoUrl !== undefined) {
-      // Allow passing an already-uploaded blob URL (e.g. barcode scan flow)
-      med.photoUrl = String(req.body.photoUrl || '');
+      med.photoUrl = String(req.body.photoUrl || '').trim();
     }
 
     await med.save();
-    res.json({ success: true, data: serializeMedication(med) });
+    res.json({ success: true, data: med });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ─── DELETE /api/medications/:id ──────────────────────────────────────────────
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const scopeFilter = req.user.orgId
       ? { orgId: req.user.orgId }
       : { addedBy: req.user.userId };
-    const med = await findScopedMedication(req.params.id, scopeFilter);
+    const med = await Medication.findOneAndDelete({ _id: req.params.id, ...scopeFilter });
     if (!med) return res.status(404).json({ success: false, message: 'Medication not found' });
-    await med.deleteOne();
     res.json({ success: true, message: 'Medication deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ─── POST /api/medications/bulk-import ───────────────────────────────────────
 router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
-
-    const importFileUrl = await uploadBufferToBlob({
-      buffer: req.file.buffer,
-      filename: req.file.originalname || `bulk-import-${Date.now()}.xlsx`,
-      contentType: req.file.mimetype,
-      prefix: `imports/${req.user.orgId || req.user.userId || 'user'}`,
-    });
 
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -290,10 +323,7 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
       return res.status(400).json({ success: false, message: 'Excel file is empty' });
     }
 
-    const errors = [];
-    const toInsert = [];
-
-    rows.forEach((row, idx) => {
+    const medications = rows.map((row) => {
       const expiryMonth = String(row['Expiry Month'] || row['expiryMonth'] || '');
       const expiryYear = String(row['Expiry Year'] || row['expiryYear'] || '');
       const expiryDate = buildExpiryDate(expiryMonth, expiryYear);
@@ -306,18 +336,10 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
       else if (currentStock <= 10) status = 'Low Stock';
       else if (expiryDate && expiryDate <= thirtyDaysOut) status = 'Expiring Soon';
 
-      const medicationName = String(row['Medication Name'] || row['medicationName'] || '').trim();
-      const sku = String(row['SKU'] || row['sku'] || row['SKU / Barcode'] || '').trim();
-
-      if (!medicationName) {
-        errors.push({ row: idx + 2, field: 'Medication Name', message: 'Medication name is required' });
-        return;
-      }
-
-      toInsert.push({
-        medicationName,
+      return {
+        medicationName: String(row['Medication Name'] || row['medicationName'] || '').trim(),
         brandName: String(row['Brand Name'] || row['brandName'] || '').trim(),
-        sku,
+        sku: String(row['SKU'] || row['sku'] || row['SKU / Barcode'] || '').trim(),
         batchLotNumber: String(row['Batch/Lot Number'] || row['batchLotNumber'] || '').trim(),
         risk: String(row['Risk'] || row['risk'] || '').trim(),
         shelfId: String(row['Shelf ID'] || row['shelfId'] || '').trim(),
@@ -330,70 +352,40 @@ router.post('/bulk-import', verifyToken, upload.single('file'), async (req, res)
         status: String(row['Status'] || status).trim(),
         category: String(row['Category'] || row['category'] || '').trim(),
         addedBy: req.user.userId,
-        orgId: req.user.orgId || 'dummy01',
-        importFileUrl,
-      });
-    });
+      orgId: req.user.orgId || 'dummy01',
+    };
+  });
 
-    let inserted = [];
-    if (toInsert.length) {
-      try {
-        inserted = await Medication.insertMany(toInsert, { ordered: false });
-      } catch (e) {
-        // If ordered:false, Mongo can still insert some docs and throw for duplicates/validation.
-        inserted = e?.insertedDocs || [];
-        if (Array.isArray(e?.writeErrors)) {
-          e.writeErrors.slice(0, 50).forEach((we) => {
-            errors.push({
-              row: (we?.index ?? 0) + 2,
-              field: 'Row',
-              message: we?.errmsg || 'Failed to insert row',
-            });
-          });
-        }
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        importFileUrl,
-        insertedCount: inserted.length,
-        items: inserted.map(serializeMedication),
-        errors,
-      },
-    });
+  res.status(200).json({ success: true, count: medications.length });
 
  } catch (error) {
    res.status(500).json({ success: false, message: error.message });
  }
 });
 
-// ─── POST /api/medications/barcode ───────────────────────────────────────────
-// Accepts a photo upload; returns parsed barcode data (mock lookup)
 router.post('/barcode', verifyToken, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No photo uploaded' });
     }
 
-    const photoUrl = await uploadBufferToBlob({
-      buffer: req.file.buffer,
-      filename: req.file.originalname || `barcode-${Date.now()}.jpg`,
-      contentType: req.file.mimetype,
-      prefix: `barcode/${req.user.orgId || req.user.userId || 'user'}`,
-    });
-
-    // Best-effort: barcode may be decoded on the client and sent here.
-    const barcode = String(req.body.barcode || req.body.barcodeData || '').trim();
-    const format = String(req.body.format || '').trim();
+    let photoUrl = '';
+    try {
+      photoUrl = await uploadImageToBlob(req.file);
+    } catch {
+      photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
 
     res.json({
       success: true,
       data: {
         photoUrl,
-        barcode,
-        format,
+        barcode: req.body.barcodeData || '',
+        medicationName: '',
+        brandName: '',
+        batchLotNumber: '',
+        expiryMonth: '',
+        expiryYear: '',
       },
     });
   } catch (error) {

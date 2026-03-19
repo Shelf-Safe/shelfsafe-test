@@ -15,7 +15,7 @@ async function handleResponse(res) {
 }
 
 export const medicationService = {
-  async getAll({ search = '', status = '', page = 1, limit = 'all' } = {}) {
+  async getAll({ search = '', status = '', page = 1, limit = 20 } = {}) {
     const params = new URLSearchParams({ search, status, page, limit }).toString();
     const res = await fetch(`${API_BASE_URL}/medications?${params}`, { headers: authHeaders() });
     return handleResponse(res);
@@ -27,17 +27,17 @@ export const medicationService = {
   },
 
   async getById(id) {
-    const res = await fetch(`${API_BASE_URL}/medications/${encodeURIComponent(id)}`, { headers: authHeaders() });
+    const res = await fetch(`${API_BASE_URL}/medications/${id}`, { headers: authHeaders() });
     return handleResponse(res);
   },
 
   async update(id, formData) {
-    const res = await fetch(`${API_BASE_URL}/medications/${encodeURIComponent(id)}`, { method: 'PUT', headers: authHeaders(), body: formData });
+    const res = await fetch(`${API_BASE_URL}/medications/${id}`, { method: 'PUT', headers: authHeaders(), body: formData });
     return handleResponse(res);
   },
 
   async remove(id) {
-    const res = await fetch(`${API_BASE_URL}/medications/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeaders() });
+    const res = await fetch(`${API_BASE_URL}/medications/${id}`, { method: 'DELETE', headers: authHeaders() });
     return handleResponse(res);
   },
 
@@ -48,12 +48,25 @@ export const medicationService = {
     return handleResponse(res);
   },
 
-  async uploadBarcode(photoFile, barcode = '', format = '') {
+  async uploadBarcode(photoFile) {
     const fd = new FormData();
     fd.append('photo', photoFile);
-    if (barcode) fd.append('barcode', barcode);
-    if (format) fd.append('format', format);
     const res = await fetch(`${API_BASE_URL}/medications/barcode`, { method: 'POST', headers: authHeaders(), body: fd });
+    return handleResponse(res);
+  },
+
+  async scanCreate({ photoFile, photoUrl = '', manualOverrides = {} }) {
+    const fd = new FormData();
+    if (photoFile) fd.append('photo', photoFile);
+    if (photoUrl) fd.append('photoUrl', photoUrl);
+
+    Object.entries(manualOverrides || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        fd.append(key, value);
+      }
+    });
+
+    const res = await fetch(`${API_BASE_URL}/medications/scan-create`, { method: 'POST', headers: authHeaders(), body: fd });
     return handleResponse(res);
   },
 };

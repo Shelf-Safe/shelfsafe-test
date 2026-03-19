@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 function XIcon() {
   return (
@@ -153,56 +153,184 @@ function BulkImport({ file, setFile }) {
 }
 function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
   const videoRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [stream, setStream] = useState(null);
+  const [cameraError, setCameraError] = useState('');
+
+  useEffect(() => {
+    return () => {
+      stream?.getTracks?.().forEach((t) => t.stop());
+    };
+  }, [stream]);
+
+  const stopTracks = (currentStream) => {
+    currentStream?.getTracks?.().forEach((t) => t.stop());
+  };
+
+  const stopCamera = () => {
+    stopTracks(stream);
+    setStream(null);
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
 
   const startCamera = async () => {
+    setCameraError('');
     try {
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
+        video: { facingMode: 'environment' }
       });
+      stopTracks(stream);
       setStream(s);
       if (videoRef.current) {
         videoRef.current.srcObject = s;
         await videoRef.current.play();
       }
     } catch (err) {
-      console.error("Camera error:", err);
-      alert("Camera permission blocked or not available.");
+      console.error('Camera error:', err);
+      setCameraError('Camera permission blocked or camera not available on this device.');
     }
   };
 
-  const stopCamera = () => {
-    stream?.getTracks()?.forEach(t => t.stop());
-    setStream(null);
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    setBarcodePhoto({
+      file: selectedFile,
+      previewUrl: URL.createObjectURL(selectedFile),
+      source: 'upload',
+      name: selectedFile.name,
+    });
+    e.target.value = '';
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    if (!width || !height) {
+      setCameraError('Camera is on, but the frame is not ready yet. Try again in a second.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, width, height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const capturedFile = new File([blob], `barcode-scan-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setBarcodePhoto({
+        file: capturedFile,
+        previewUrl: URL.createObjectURL(blob),
+        source: 'camera',
+        name: capturedFile.name,
+      });
+      stopCamera();
+    }, 'image/jpeg', 0.92);
+  };
+
+  const clearSelectedPhoto = () => {
+    if (barcodePhoto?.previewUrl) {
+      try {
+        URL.revokeObjectURL(barcodePhoto.previewUrl);
+      } catch {}
+    }
+    setBarcodePhoto(null);
   };
 
   return (
     <div>
       <h3 className="text-xl font-bold text-gray-900 mb-1">Scan a barcode</h3>
-      <p className="text-sm text-gray-500 mb-6">Scan a medication barcode using your device camera.</p>
+      <p className="text-sm text-gray-500 mb-2">Use your camera to take a picture or upload a barcode image from your device.</p>
+      <p className="text-xs text-gray-400 mb-5">This is helpful on laptops where the live camera may not scan reliably.</p>
 
-      <div className="flex justify-center mb-4">
+      <div className="flex flex-col gap-3 mb-4">
         <button
           type="button"
           onClick={startCamera}
-          className="px-8 py-3 rounded-xl text-white font-semibold text-base"
+          className="w-full px-8 py-3 rounded-xl text-white font-semibold text-base"
           style={{ backgroundColor: '#00808d' }}
         >
           Enable camera
         </button>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          style={btnOutline}
+          className="w-full"
+        >
+          Upload from device
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </div>
 
-      
-      <video
-        ref={videoRef}
-        className="w-full rounded-xl border border-gray-200"
-        style={{ maxHeight: 260 }}
-        playsInline
-        muted
-      />
+      {cameraError && (
+        <p className="text-xs text-red-500 mb-3">{cameraError}</p>
+      )}
+
+      {stream ? (
+        <div className="rounded-xl border border-gray-200 overflow-hidden bg-black mb-3">
+          <video
+            ref={videoRef}
+            className="w-full"
+            style={{ maxHeight: 260 }}
+            playsInline
+            muted
+          />
+        </div>
+      ) : barcodePhoto?.previewUrl ? (
+        <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50 mb-3">
+          <img
+            src={barcodePhoto.previewUrl}
+            alt="Selected barcode"
+            className="w-full object-contain"
+            style={{ maxHeight: 260 }}
+          />
+        </div>
+      ) : (
+        <div
+          className="w-full rounded-xl border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-center px-4 py-10 mb-3"
+          style={{ minHeight: 220 }}
+        >
+          <p className="text-sm text-gray-500 leading-relaxed">
+            No barcode image selected yet.<br />
+            Turn on the camera and capture a photo, or upload one from your device.
+          </p>
+        </div>
+      )}
+
+      {barcodePhoto?.name && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-200 bg-white mb-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{barcodePhoto.name}</p>
+            <p className="text-xs text-gray-500">Source: {barcodePhoto.source === 'camera' ? 'Camera photo' : 'Uploaded image'}</p>
+          </div>
+          <button
+            type="button"
+            onClick={clearSelectedPhoto}
+            className="flex-shrink-0 p-1 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <TrashIcon />
+          </button>
+        </div>
+      )}
 
       {stream && (
-        <div className="flex justify-center mt-3">
+        <div className="flex justify-center gap-3 mt-3 mb-3">
+          <button type="button" onClick={capturePhoto} style={btnTeal}>
+            Capture photo
+          </button>
           <button type="button" onClick={stopCamera} style={btnOutline}>
             Stop camera
           </button>
@@ -265,19 +393,20 @@ export const AddMedicationModal = ({
 
   const canSave =
     (step === 'bulk' && !!file) ||
-    (step === 'barcode' && !!barcodePhoto);
+    (step === 'barcode' && !!barcodePhoto?.file);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       if (step === 'bulk' && file && onBulkSave) {
         await onBulkSave(file);
-      } else if (step === 'barcode' && barcodePhoto && onBarcodeSave) {
+        handleClose();
+      } else if (step === 'barcode' && barcodePhoto?.file && onBarcodeSave) {
         await onBarcodeSave(barcodePhoto.file);
+        handleClose();
       }
     } finally {
       setSaving(false);
-      handleClose();
     }
   };
 
@@ -380,7 +509,7 @@ export const AddMedicationModal = ({
                 disabled={!canSave || saving}
                 style={canSave && !saving ? btnTeal : btnTealDisabled}
               >
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? 'Scanning...' : step === 'barcode' ? 'Scan' : 'Save'}
               </button>
             )}
           </div>
