@@ -163,6 +163,39 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
     };
   }, [stream]);
 
+  useEffect(() => {
+    if (!stream || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.srcObject = stream;
+
+    const playVideo = async () => {
+      try {
+        await video.play();
+      } catch (err) {
+        console.error('Video preview error:', err);
+        setCameraError('Camera opened, but preview could not start. Please try again.');
+      }
+    };
+
+    if (video.readyState >= 1) {
+      playVideo();
+    } else {
+      video.onloadedmetadata = () => {
+        playVideo();
+      };
+    }
+
+    return () => {
+      if (video) {
+        video.onloadedmetadata = null;
+        if (video.srcObject === stream) {
+          video.srcObject = null;
+        }
+      }
+    };
+  }, [stream]);
+
   const stopTracks = (currentStream) => {
     currentStream?.getTracks?.().forEach((t) => t.stop());
   };
@@ -176,15 +209,21 @@ function BarcodeScan({ barcodePhoto, setBarcodePhoto, onAddManually }) {
   const startCamera = async () => {
     setCameraError('');
     try {
+      if (stream) {
+        if (videoRef.current && videoRef.current.srcObject !== stream) {
+          videoRef.current.srcObject = stream;
+        }
+        if (videoRef.current) {
+          await videoRef.current.play().catch(() => {});
+        }
+        return;
+      }
+
       const s = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' }
       });
       stopTracks(stream);
       setStream(s);
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
-        await videoRef.current.play();
-      }
     } catch (err) {
       console.error('Camera error:', err);
       setCameraError('Camera permission blocked or camera not available on this device.');
