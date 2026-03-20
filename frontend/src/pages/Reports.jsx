@@ -515,7 +515,6 @@ function ShareMenu({ row }) {
                   className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
                   onClick={async () => {
                     const copied = await copyReportUrl(normalizedUrl);
-                    if (copied) alert('Link copied to clipboard!');
                     closeMenu();
                   }}
                   disabled={!normalizedUrl}
