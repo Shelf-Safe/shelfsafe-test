@@ -430,6 +430,7 @@ function ShareMenu({ row }) {
   const [menuStyle, setMenuStyle] = useState({ top: 0, left: 0, width: 280 });
   const [copiedMessage, setCopiedMessage] = useState('');
   const buttonRef = useRef(null);
+  const menuRef = useRef(null);
   const timeoutRef = useRef(null);
   const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
   const normalizedUrl = normalizeReportUrl(row?.fileUrl);
@@ -465,6 +466,7 @@ function ShareMenu({ row }) {
     const handleWindowChange = () => updatePosition();
     const handleOutside = (event) => {
       if (buttonRef.current?.contains(event.target)) return;
+      if (menuRef.current?.contains(event.target)) return;
       closeMenu();
     };
     window.addEventListener('resize', handleWindowChange);
@@ -498,6 +500,7 @@ function ShareMenu({ row }) {
 
       {open ? (
         <div
+          ref={menuRef}
           className="fixed z-[101] overflow-hidden bg-white border border-gray-200 shadow-xl rounded-2xl"
           style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
         >
@@ -676,7 +679,6 @@ export const Reports = () => {
 
   return (
     <DashboardLayout pageTitle="Reports" headerRight={<UserChip user={user} />}>
-      {/* Header row: title + button same line */}
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
           <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: '0 0 4px' }}>Reports</h1>
@@ -717,7 +719,6 @@ export const Reports = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Search */}
         <div className="relative">
           <input
             type="text"
