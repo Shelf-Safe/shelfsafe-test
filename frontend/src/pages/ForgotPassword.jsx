@@ -1,9 +1,8 @@
-import { API_BASE_URL } from '../config/api';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthPageLayout } from '../components/AuthPageLayout';
 
-const API = API_BASE_URL;
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5003/api';
 
 export const ForgotPassword = () => {
   const [email, setEmail]       = useState('');

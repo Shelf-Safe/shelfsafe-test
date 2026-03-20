@@ -2,6 +2,9 @@ import express from 'express';
 import { verifyToken } from '../middleware/auth.js';
 import Medication from '../models/Medication.js';
 import PosConnection from '../models/PosConnection.js';
+import { evaluateInventoryNotifications } from '../utils/notificationHelper.js';
+import { sendEmail } from '../utils/sendEmail.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
@@ -16,7 +19,7 @@ const providers = [
   { key: 'propel', name: 'Propel OS', logoUrl: '/pos-logos/PropelOS.png' },
 ];
 
-const POS_API_BASE_URL = process.env.POS_API_BASE_URL || 'https://shelfsafe-pos.vercel.app/';
+const POS_API_BASE_URL = (process.env.POS_API_BASE_URL || 'https://shelfsafe-pos.vercel.app').trim();
 
 async function posRequest(endpoint, options = {}) {
   const response = await fetch(`${POS_API_BASE_URL}${endpoint}`, options);
@@ -108,6 +111,47 @@ async function upsertMedications(req, items = []) {
   return ops.length;
 }
 
+
+async function getInventoryStatsForOrg(orgId) {
+  const medications = await Medication.find({ orgId }).lean();
+  return evaluateInventoryNotifications(medications);
+}
+
+async function sendInventoryAlert({ user, stats }) {
+  const { expiredCount, expiringSoonCount, thresholdCrossed } = stats;
+
+  if (!user?.email) return;
+
+  //  Critical alert
+  if (thresholdCrossed) {
+    await sendEmail({
+      to: user.email,
+      subject: '🚨 ShelfSafe Alert: High Expired Inventory',
+      html: `
+        <h2>Critical Inventory Alert</h2>
+        <p>You now have <strong>${expiredCount}</strong> expired items in your inventory.</p>
+        <p>Please take action immediately.</p>
+      `,
+    });
+  }
+
+  //  Warning alert
+  else if (expiringSoonCount > 0) {
+    await sendEmail({
+      to: user.email,
+      subject: '⚠️ ShelfSafe: Items Expiring Soon',
+      html: `
+        <h2>Upcoming Expiry Alert</h2>
+        <p>You have <strong>${expiringSoonCount}</strong> items expiring within 30 days.</p>
+      `,
+    });
+  }
+}
+
+
+
+
+
 router.get('/providers', verifyToken, (_req, res) => {
   res.json({ success: true, providers });
 });
@@ -133,6 +177,7 @@ router.post('/connect', verifyToken, async (req, res) => {
     if (!userId) return res.status(401).json({ success: false, message: 'Invalid user.' });
 
     const orgId = orgIdFor(req);
+    const previousStats = await getInventoryStatsForOrg(orgId);
 
     let importedFromPos = 0;
     let nextCursor = 0;
@@ -198,6 +243,25 @@ router.post('/connect', verifyToken, async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    const notificationStats = await getInventoryStatsForOrg(orgId);
+    const thresholdCrossed =
+      previousStats.expiredCount < 25 && notificationStats.expiredCount >= 25;
+
+
+    const user = await User.findById(req.user.userId);
+
+    try {
+      await sendInventoryAlert({
+        user,
+        stats: {
+          ...notificationStats,
+          thresholdCrossed,
+        },
+      });
+    } catch (emailError) {
+      console.error('Inventory alert email failed:', emailError.message);
+    }
+
     res.json({
       success: true,
       connection,
@@ -205,6 +269,10 @@ router.post('/connect', verifyToken, async (req, res) => {
       imported: importedFromPos,
       changedItems,
       mode: 'connect',
+      notificationStats: {
+        ...notificationStats,
+        thresholdCrossed,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Unable to connect POS.' });
@@ -222,6 +290,9 @@ router.post('/sync', verifyToken, async (req, res) => {
       isConnected: true,
     });
     if (!connection) return res.status(400).json({ success: false, message: 'No POS connection found.' });
+
+    const orgId = orgIdFor(req);
+    const previousStats = await getInventoryStatsForOrg(orgId);
 
     let importedFromPos = 0;
     let nextCursor = connection.posCursor || 0;
@@ -287,6 +358,24 @@ router.post('/sync', verifyToken, async (req, res) => {
     connection.lastSyncedAt = new Date();
     await connection.save();
 
+    const notificationStats = await getInventoryStatsForOrg(orgId);
+    const thresholdCrossed =
+      previousStats.expiredCount < 25 && notificationStats.expiredCount >= 25;
+
+    const user = await User.findById(req.user.userId);
+
+    try {
+      await sendInventoryAlert({
+        user,
+        stats: {
+          ...notificationStats,
+          thresholdCrossed,
+        },
+      });
+    } catch (emailError) {
+      console.error('Inventory alert email failed:', emailError.message);
+    }
+
     res.json({
       success: true,
       connection,
@@ -295,6 +384,10 @@ router.post('/sync', verifyToken, async (req, res) => {
       changed: importedFromPos,
       changedItems,
       mode: 'sync',
+      notificationStats: {
+        ...notificationStats,
+        thresholdCrossed,
+      },
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Unable to sync POS.' });

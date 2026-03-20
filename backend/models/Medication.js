@@ -61,7 +61,7 @@ const medicationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['In Stock', 'Low Stock', 'Out of Stock', 'Expiring Soon', 'Recalled', ''],
+      enum: ['In Stock', 'Low Stock', 'Out of Stock', 'Expiring Soon', 'Expired', 'Recalled', 'Removed', ''],
       default: 'In Stock',
     },
     category: {
@@ -92,18 +92,34 @@ const medicationSchema = new mongoose.Schema(
   }
 );
 
+function normalizeToStartOfDay(d) {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 medicationSchema.pre('save', function (next) {
-  const today = new Date();
-  const thirtyDaysOut = new Date();
-  thirtyDaysOut.setDate(today.getDate() + 30);
+  const today = normalizeToStartOfDay(new Date());
+  const thirtyDaysOut = new Date(today);
+  thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
+
+  if (this.expiryDate) {
+    const exp = normalizeToStartOfDay(this.expiryDate);
+    if (exp < today) {
+      this.status = 'Expired';
+      return next();
+    }
+    if (exp <= thirtyDaysOut) {
+      this.status = 'Expiring Soon';
+      return next();
+    }
+  }
 
   if (this.currentStock === 0) {
     this.status = 'Out of Stock';
   } else if (this.currentStock <= 10) {
     this.status = 'Low Stock';
-  } else if (this.expiryDate && this.expiryDate <= thirtyDaysOut) {
-    this.status = 'Expiring Soon';
-  } else if (!this.status || this.status === '') {
+  } else if (!this.status || this.status === '' || ['Expiring Soon', 'Expired'].includes(this.status)) {
     this.status = 'In Stock';
   }
 

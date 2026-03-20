@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 /* Chart palette */
 const CHART_RED = '#C00F0C';
@@ -79,8 +79,33 @@ const DEFAULT_BAR = [
 ];
 
 
-const DONUT_INNER = 28;
-const DONUT_WIDTH = 34;
+const DONUT_INNER = 32;
+const DONUT_WIDTH = 20;
+
+
+function useResponsiveWidth(minWidth = 420, fallback = 640) {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(fallback);
+
+  useEffect(() => {
+    if (!ref.current || typeof ResizeObserver === 'undefined') return undefined;
+    const element = ref.current;
+    const update = () => {
+      const next = Math.max(minWidth, Math.round(element.clientWidth || fallback));
+      setWidth(next);
+    };
+    update();
+    const observer = new ResizeObserver(() => update());
+    observer.observe(element);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [fallback, minWidth]);
+
+  return [ref, width];
+}
 
 export function DonutChart({ data }) {
   const donutData = data && data.length ? data : DEFAULT_DONUT;
@@ -101,7 +126,7 @@ export function DonutChart({ data }) {
   return (
     <div className="dash-chart-inner">
       <div className="dash-chart-donut-wrap">
-        <svg className="dash-chart-donut-svg" width={160} height={160} viewBox="0 0 160 160">
+        <svg className="dash-chart-donut-svg" viewBox="0 0 160 160" preserveAspectRatio="xMidYMid meet">
           {slices.map((s, i) => {
             const sliceMod = s.color === CHART_TEAL ? 'teal' : s.color === CHART_BLUE ? 'attention' : 'critical';
             return (
@@ -142,19 +167,22 @@ export function DonutChart({ data }) {
 }
 
 
+
 export function BarChart({ data }) {
-  const [hoveredIndex, setHoveredIndex] = React.useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [wrapRef, measuredWidth] = useResponsiveWidth(440, 640);
   const barData = data && data.length ? data : DEFAULT_BAR;
   const maxVal = Math.max(1, ...barData.map((b) => b.value));
   const chartH = 160;
-  const barW = 50.571;
-  const barGap = 48;
-  const chartW = (barData.length + 1) * barGap + barData.length * barW;
-  const gap = barGap;
+  const slotMin = 72;
+  const chartW = Math.max(440, measuredWidth);
+  const slot = Math.max(slotMin, Math.floor(chartW / barData.length));
+  const barW = Math.max(26, Math.min(46, Math.round(slot * 0.39)));
+  const gap = Math.max(12, Math.round((chartW - barW * barData.length) / (barData.length + 1)));
   const ySteps = [0, Math.ceil(maxVal / 4), Math.ceil(maxVal / 2), Math.ceil((3 * maxVal) / 4), maxVal].filter((v, i, a) => a.indexOf(v) === i);
 
   return (
-    <div className="dash-chart-bar-wrap">
+    <div className="dash-chart-bar-wrap" ref={wrapRef}>
       <div className="dash-chart-bar-y-axis">
         <span className="dash-chart-bar-y-days">Days</span>
         {ySteps.map((v) => (
@@ -162,7 +190,7 @@ export function BarChart({ data }) {
         ))}
       </div>
       <div className="dash-chart-bar-svg-wrap">
-        <svg width={chartW} height={chartH} viewBox={`0 0 ${chartW} ${chartH}`}>
+        <svg className="dash-chart-bar-svg" viewBox={`0 0 ${chartW} ${chartH}`} preserveAspectRatio="xMidYMid meet">
           <defs>
             <filter id="dash-bar-tooltip-shadow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx={0} dy={2} stdDeviation={4} floodColor="#000" floodOpacity={0.1} />
@@ -176,8 +204,8 @@ export function BarChart({ data }) {
             const bh = Math.max(0, (b.value / maxVal) * chartH);
             const y = chartH - bh;
             const trackRx = 6;
-            const fillInset = 6;
-            const fillW = barW - 2 * fillInset;
+            const fillInset = Math.max(2, Math.round(barW * 0.12));
+            const fillW = Math.max(18, barW - 2 * fillInset);
             const fillX = x + fillInset;
             const fillRx = bh >= chartH ? trackRx - 1 : Math.min(trackRx - 1, bh / 2);
             return (
@@ -201,7 +229,7 @@ export function BarChart({ data }) {
             const tipW = 52;
             const tipH = 34;
             const tipGap = 10;
-            const tipX = x + barW + tipGap;
+            const tipX = Math.min(chartW - tipW - 4, x + barW + tipGap);
             const tipY = Math.max(4, Math.min(chartH - tipH - 4, y + bh / 2 - tipH / 2));
             return (
               <g className="dash-bar-tooltip" filter="url(#dash-bar-tooltip-shadow)" pointerEvents="none">
@@ -215,13 +243,20 @@ export function BarChart({ data }) {
           })()}
         </svg>
         <div className="dash-chart-bar-x-wrap">
-          <span style={{ width: gap }} aria-hidden="true" />
-          {barData.map((b, i) => (
-            <React.Fragment key={i}>
-              <span className="dash-chart-bar-x-label" style={{ width: barW }}>{b.label}</span>
-              {i < barData.length - 1 ? <span style={{ width: gap }} aria-hidden="true" /> : null}
-            </React.Fragment>
-          ))}
+          {barData.map((b, i) => {
+            const x = gap + i * (barW + gap);
+            const centerPct = ((x + barW / 2) / chartW) * 100;
+            const widthPct = (barW / chartW) * 100;
+            return (
+              <span
+                key={i}
+                className="dash-chart-bar-x-label"
+                style={{ left: `${centerPct}%`, width: `${Math.max(widthPct, 8)}%` }}
+              >
+                {b.label}
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>

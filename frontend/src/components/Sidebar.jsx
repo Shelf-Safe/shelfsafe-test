@@ -49,14 +49,14 @@ const navItems = [
 ];
 
 /* ─── NavContent ────────────────────────────────────────────────────────────── */
-function NavContent({ onClose, mobileActiveClass, iconSize, iconAlwaysTeal }) {
+function NavContent({ onClose, mobileActiveClass, iconSize, iconAlwaysTeal, isMobile = false }) {
   const activeClass = mobileActiveClass ?? 'bg-[#f0fdfc] text-[#00808d] font-semibold';
   const inactiveClass = 'text-gray-600 hover:bg-gray-50';
   const mobileInactiveClass = 'text-gray-800';
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-5 pt-6 pb-5">
+       <div className={isMobile ? 'px-5 pt-14 pb-5 flex justify-center' : 'px-5 pb-5'}>
         <img src={logoBig} alt="ShelfSafe" className="w-auto select-none" style={{ height: '67px' }} draggable={false} />
       </div>
 
@@ -172,6 +172,7 @@ export const Sidebar = ({ mobileHeaderRight }) => {
             mobileActiveClass="bg-[#f0fdfc] text-[#00808d] font-semibold"
             iconSize={24}
             iconAlwaysTeal
+            isMobile
           />
         </div>
         <div className="flex-shrink-0 p-4 pt-0 flex justify-center m-12">

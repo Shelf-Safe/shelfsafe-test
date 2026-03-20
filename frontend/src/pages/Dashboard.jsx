@@ -6,6 +6,35 @@ import { medicationService } from '../services/medicationService';
 import { posSyncService } from '../services/posSyncService';
 import { computeDonutData, computeBarData, DonutChart, BarChart } from '../components/DashboardCharts';
 
+
+const DASHBOARD_CACHE_KEY = 'shelfsafe_dashboard_cache';
+const INVENTORY_CACHE_KEY = 'shelfsafe_inventory_cache';
+
+function serializeDashboardCache(payload) {
+  try {
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ ...payload, cachedAt: Date.now() }));
+  } catch {}
+}
+
+function readDashboardCache() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readInventoryCache() {
+  try {
+    const raw = localStorage.getItem(INVENTORY_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function totalFromSummary(summary) {
   if (!summary || typeof summary !== 'object') return 0;
   return Number(summary.totalImported) || Object.values(summary).reduce((s, v) => s + (Number(v) || 0), 0);
@@ -69,6 +98,36 @@ function formatLastSync(date) {
   return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+
+function buildDashboardState(list, currentLastSync = null) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const thirtyDaysOut = new Date(today);
+  thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
+
+  const expiring = list.filter((m) => m.expiryDate && new Date(m.expiryDate) <= thirtyDaysOut && new Date(m.expiryDate) >= today).length;
+  const expired = list.filter((m) => m.expiryDate && new Date(m.expiryDate) < today).length;
+  const highRisk = list.filter((m) => m.risk === 'Medium' || m.risk === 'High' || m.risk === 'Critical').length;
+  const lowStock = list.filter((m) => m.status === 'Low Stock' || m.status === 'Out of Stock').length;
+
+  const withPriority = list.map((m) => {
+    let p = 0;
+    if (m.status === 'Out of Stock' || m.status === 'Expiring Soon') p = 3;
+    else if (m.status === 'Low Stock' || m.risk === 'Medium') p = 2;
+    else p = 1;
+    return { m, p };
+  });
+
+  const actionItems = withPriority.sort((a, b) => b.p - a.p).slice(0, 20).map(({ m }) => mapMedication(m));
+  return {
+    stats: { expiring, expired, highRisk, lowStock },
+    actionItems,
+    donutData: computeDonutData(list),
+    barData: computeBarData(list),
+    lastSync: currentLastSync || null,
+  };
+}
+
 export const Dashboard = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -88,6 +147,31 @@ export const Dashboard = () => {
   const [lastSyncChangedItems, setLastSyncChangedItems] = useState([]);
   const [dismissedActionKeys, setDismissedActionKeys] = useState([]);
 
+  const applyCachedDashboard = React.useCallback(() => {
+    const dashboardCache = readDashboardCache();
+    if (dashboardCache?.stats && dashboardCache?.actionItems && dashboardCache?.donutData && dashboardCache?.barData) {
+      setStats(dashboardCache.stats);
+      setActionItems(dashboardCache.actionItems);
+      setDonutData(dashboardCache.donutData);
+      setBarData(dashboardCache.barData);
+      if (dashboardCache.lastSync) setLastSync(new Date(dashboardCache.lastSync));
+      setLoading(false);
+      return true;
+    }
+
+    const inventoryCache = readInventoryCache();
+    if (inventoryCache.length) {
+      const payload = buildDashboardState(inventoryCache, null);
+      setStats(payload.stats);
+      setActionItems(payload.actionItems);
+      setDonutData(payload.donutData);
+      setBarData(payload.barData);
+      setLoading(false);
+      return true;
+    }
+    return false;
+  }, []);
+
   const handleSort = (column) => {
     if (sortBy === column) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -100,8 +184,9 @@ export const Dashboard = () => {
   const loadDashboard = React.useCallback((options = {}) => {
     const { silent } = options;
     if (!silent) setLoading(true);
+    setError(null);
     const fetchConnection = posSyncService.getConnection().catch(() => ({ connection: null }));
-    return Promise.all([medicationService.getAll({ limit: 10000, page: 1 }), fetchConnection])
+    return Promise.all([medicationService.getAll({ limit: 2000, page: 1 }), fetchConnection])
       .then(([res, connectionRes]) => {
         const connection = connectionRes?.connection || null;
         setPosConnection(connection);
@@ -109,43 +194,21 @@ export const Dashboard = () => {
 
         if (!res.success) return;
         const list = res.data || [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const thirtyDaysOut = new Date(today);
-        thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
-
-        const expiring = list.filter(
-          (m) => m.expiryDate && new Date(m.expiryDate) <= thirtyDaysOut && new Date(m.expiryDate) >= today
-        ).length;
-        const expired = list.filter(
-          (m) => m.expiryDate && new Date(m.expiryDate) < today
-        ).length;
-        const highRisk = list.filter(
-          (m) => m.risk === 'Medium' || m.risk === 'High' || m.risk === 'Critical'
-        ).length;
-        const lowStock = list.filter(
-          (m) => m.status === 'Low Stock' || m.status === 'Out of Stock'
-        ).length;
-
-        const withPriority = list.map((m) => {
-          let p = 0;
-          if (m.status === 'Out of Stock' || m.status === 'Expiring Soon') p = 3;
-          else if (m.status === 'Low Stock' || m.risk === 'Medium') p = 2;
-          else p = 1;
-          return { m, p };
-        });
-        const sorted = withPriority.sort((a, b) => b.p - a.p).slice(0, 20);
-
-        setStats({ expiring, expired, highRisk, lowStock });
-        setActionItems(sorted.map(({ m }) => mapMedication(m)));
-        setDonutData(computeDonutData(list));
-        setBarData(computeBarData(list));
-        if (!connection?.lastSyncedAt) setLastSync(new Date());
+        const effectiveLastSync = connection?.lastSyncedAt ? new Date(connection.lastSyncedAt) : new Date();
+        if (!connection?.lastSyncedAt) setLastSync(effectiveLastSync);
+        const payload = buildDashboardState(list, effectiveLastSync);
+        setStats(payload.stats);
+        setActionItems(payload.actionItems);
+        setDonutData(payload.donutData);
+        setBarData(payload.barData);
+        serializeDashboardCache(payload);
         return list.length;
       })
       .catch((err) => {
-        if (!silent) setError(err.message || 'Failed to load dashboard');
-        throw err;
+        if (!silent && !readDashboardCache() && readInventoryCache().length === 0) {
+          setError(err.message || 'Failed to load dashboard');
+        }
+        return null;
       })
       .finally(() => {
         if (!silent) setLoading(false);
@@ -153,8 +216,9 @@ export const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    const hydrated = applyCachedDashboard();
+    loadDashboard({ silent: hydrated });
+  }, [applyCachedDashboard, loadDashboard]);
 
   const handleSyncClick = async () => {
     if (!posConnection) {
@@ -277,7 +341,7 @@ export const Dashboard = () => {
           <h1 className="dash-title">Dashboard</h1>
           <div className="dash-header-actions">
             <div className="dash-header-buttons">
-              <Link to="/inventory/add" className="btn btn-outline">Add Medication</Link>
+              <Link to="/inventory?add=1" className="btn btn-outline">Add Medication</Link>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -431,7 +495,7 @@ export const Dashboard = () => {
                     <td>{m.currentStock}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="dash-action-btns">
-                        <Link to={`/inventory/${m.id}/edit`} className="dash-btn-icon" aria-label="Edit">
+                        <Link to={`/inventory/${m.id}`} className="dash-btn-icon" aria-label="Edit details">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00808d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />

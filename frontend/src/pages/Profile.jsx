@@ -121,11 +121,8 @@ export const Profile = () => {
     },
     recentActivity:
       profile?.recentActivity?.length > 0
-        ? profile.recentActivity
-          .slice()
-          .reverse()
-          .map((item) => item.action)
-        : ['No recent activity available'],
+        ? profile.recentActivity.slice().reverse()
+        : [],
   };
 
   const handleAvatarClick = () => {
@@ -150,6 +147,37 @@ export const Profile = () => {
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
+  };
+
+  const formatActivityTime = (timestamp) => {
+    if (!timestamp) return '';
+
+    const date = new Date(timestamp);
+    const now = new Date();
+
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return `Today, ${date.toLocaleTimeString('en-CA', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })}`;
+    }
+
+    return (
+      date.toLocaleDateString('en-CA', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }) +
+      ', ' +
+      date.toLocaleTimeString('en-CA', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    );
   };
 
   return (
@@ -291,11 +319,25 @@ export const Profile = () => {
                     <IconShield /> Recent Activity
                   </h3>
                   <div className="max-h-52 overflow-y-auto pr-1">
-                    <ul className="flex flex-col gap-2.5 text-sm text-[#4f5250]">
-                      {displayProfile.recentActivity.map((item, index) => (
-                        <li key={index}>• {item}</li>
-                      ))}
-                    </ul>
+                    <div className="flex flex-col gap-3 text-[#4f5250]">
+                      {displayProfile.recentActivity.length > 0 ? (
+                        displayProfile.recentActivity.map((item, index) => (
+                          <div key={`${item.action}-${item.timestamp || index}`}>
+                            <p className="text-sm">• {item.action}</p>
+
+                            {item.timestamp && (
+                              <p className="text-xs text-[#6b7280]">
+                                {formatActivityTime(item.timestamp)} PT
+                              </p>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-[#6b7280]">
+                          No recent activity available
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

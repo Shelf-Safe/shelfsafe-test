@@ -664,7 +664,7 @@ export const Reports = () => {
 
       {/* Reports table */}
       <div className="overflow-hidden bg-white border border-gray-200 rounded-xl">
-        <div className="overflow-x-auto">
+        <div className="max-h-[58vh] overflow-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-gray-200">

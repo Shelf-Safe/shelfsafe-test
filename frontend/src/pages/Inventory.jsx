@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDataSource } from '../context/DataSourceContext';
 import { DashboardLayout } from '../components/DashboardLayout';
@@ -8,126 +8,21 @@ import { medicationService } from '../services/medicationService';
 import { DUMMY_MEDICATIONS } from '../data/dummyMedications';
 
 const ITEMS_PER_PAGE = 13;
+const CACHE_KEY = 'shelfsafe_inventory_cache';
 
-/* ─── Icons ──────────────────────────────────────────────────────────────────*/
-function SearchIcon() {
-  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+function SearchIcon({ color = '#00808d' }) {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
 }
 function ChevronDown() {
-  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>;
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00808d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>;
 }
 function ChevronLeft() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
 }
 function ChevronRight() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
-}
-function PlusIcon() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
 }
 
-/* ─── Category multi-select dropdown ────────────────────────────────────────*/
-function CategoryDropdown({ categories = [], selected, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const toggle = (cat) => {
-    onChange(
-      selected.includes(cat) ? selected.filter((c) => c !== cat) : [...selected, cat]
-    );
-  };
-
-  const label = selected.length === 0 ? 'Category' : selected.length === 1 ? selected[0] : `${selected.length} selected`;
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-gray-300 transition-colors"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span>{label}</span>
-        <ChevronDown />
-      </button>
-
-      {open && (
-        <div
-          style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 100,
-            backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '10px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: '180px', padding: '8px 0',
-          }}
-          role="listbox"
-          aria-multiselectable="true"
-          aria-label="Select categories"
-        >
-          <p style={{ margin: '4px 12px 6px', fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Select the category:
-          </p>
-          {categories.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-400">No categories</div>
-          ) : categories.map((cat) => (
-            <label
-              key={cat}
-              className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer"
-              style={{ fontSize: '13px', color: '#374151' }}
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(cat)}
-                onChange={() => toggle(cat)}
-                className="w-4 h-4 rounded border-gray-300 accent-[#00808d]"
-                aria-label={cat}
-              />
-              {cat}
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Pagination ─────────────────────────────────────────────────────────────*/
-function Pagination({ page, totalPages, onChange }) {
-  const pages = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else {
-    pages.push(1);
-    if (page > 3) pages.push('...');
-    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
-    if (page < totalPages - 2) pages.push('...');
-    pages.push(totalPages);
-  }
-
-  const btnCls = (active) =>
-    `w-7 h-7 flex items-center justify-center rounded-lg text-sm font-medium transition-colors cursor-pointer border-none ${active ? 'text-white' : 'text-gray-500 bg-transparent hover:bg-gray-100'}`;
-
-  return (
-    <div className="flex items-center justify-center gap-1 py-3 px-4 border-t border-gray-100">
-      <button className={btnCls(false)} onClick={() => onChange(Math.max(1, page - 1))} disabled={page === 1} aria-label="Previous"><ChevronLeft /></button>
-      {pages.map((p, i) =>
-        p === '...' ? (
-          <span key={`e${i}`} className="w-7 h-7 flex items-center justify-center text-sm text-gray-400">...</span>
-        ) : (
-          <button key={p} className={btnCls(p === page)} style={p === page ? { backgroundColor: '#00808d' } : {}} onClick={() => onChange(p)} aria-label={`Page ${p}`} aria-current={p === page ? 'page' : undefined}>{p}</button>
-        )
-      )}
-      <button className={btnCls(false)} onClick={() => onChange(Math.min(totalPages, page + 1))} disabled={page === totalPages} aria-label="Next"><ChevronRight /></button>
-    </div>
-  );
-}
-
-/* ─── UserChip ───────────────────────────────────────────────────────────────*/
 function UserChip({ user }) {
   const navigate = useNavigate();
   const initials = user?.name ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'S';
@@ -141,293 +36,383 @@ function UserChip({ user }) {
   );
 }
 
-/* ─── Inventory page ─────────────────────────────────────────────────────────*/
+function CategoryDropdown({ categories = [], selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (cat) => {
+    onChange(selected.includes(cat) ? selected.filter((c) => c !== cat) : [...selected, cat]);
+  };
+
+  const label = selected.length === 0 ? 'Category' : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+
+  return (
+    <div ref={ref} className="relative min-w-[160px]">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 bg-white text-left text-base md:text-sm text-gray-500 hover:border-gray-300">
+        <span className={selected.length ? 'text-gray-800 truncate' : 'truncate'}>{label}</span>
+        <ChevronDown />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+8px)] z-50 min-w-full rounded-xl border border-gray-200 bg-white shadow-lg p-3">
+          <p className="text-sm font-semibold text-gray-500 mb-3">Select the category:</p>
+          <div className="space-y-3">
+            {categories.map((cat) => (
+              <label key={cat} className="flex items-center gap-3 cursor-pointer text-gray-700 text-base md:text-sm">
+                <input type="checkbox" checked={selected.includes(cat)} onChange={() => toggle(cat)} className="w-5 h-5 accent-[#00808d]" />
+                <span>{cat}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, onChange }) {
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('...');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1 px-4 py-4 border-t border-gray-100">
+      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100" disabled={page === 1} onClick={() => onChange(Math.max(1, page - 1))}><ChevronLeft /></button>
+      {pages.map((p, idx) => p === '...' ? <span key={`ellipsis-${idx}`} className="w-8 text-center text-gray-400">…</span> : (
+        <button key={`page-${p}`} onClick={() => onChange(p)} className={`w-8 h-8 rounded-lg text-sm font-semibold ${p === page ? 'text-white bg-[#00808d]' : 'text-gray-500 hover:bg-gray-100'}`}>{p}</button>
+      ))}
+      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100" disabled={page === totalPages} onClick={() => onChange(Math.min(totalPages, page + 1))}><ChevronRight /></button>
+    </div>
+  );
+}
+
+function SkeletonRows() {
+  return Array.from({ length: 8 }).map((_, i) => (
+    <tr key={i} className={i > 0 ? 'border-t border-gray-100' : ''}>
+      {Array.from({ length: 8 }).map((__, j) => (
+        <td key={j} className="px-4 py-4"><div className="h-4 rounded bg-gray-100 animate-pulse" /></td>
+      ))}
+    </tr>
+  ));
+}
+
+function deriveStatus(m) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const soon = new Date(today);
+  soon.setDate(soon.getDate() + 30);
+  const exp = m?.expiryDate ? new Date(m.expiryDate) : null;
+  if (m?.status === 'Removed' || m?.status === 'Recalled') return m.status;
+  if (exp && !Number.isNaN(exp.getTime())) {
+    exp.setHours(0, 0, 0, 0);
+    if (exp < today) return 'Expired';
+    if (exp <= soon) return 'Expiring';
+  }
+  const stock = Number(m?.currentStock || 0);
+  if (stock <= 0) return 'Out of Stock';
+  if (stock <= 10) return 'Low Stock';
+  return 'In Stock';
+}
+
+function normalizeMedication(m) {
+  const rawMongoId = m?._id ? String(m._id) : (m?.id ? String(m.id) : '');
+  const routeId = rawMongoId || String(m?.id || '');
+  const expiryDateRaw = m.expiryDate || '';
+  let expiryDate = '';
+  try {
+    if (expiryDateRaw) {
+      const d = new Date(expiryDateRaw);
+      expiryDate = Number.isNaN(d.getTime()) ? String(expiryDateRaw) : d.toISOString();
+    } else if (m.expiryMonth && m.expiryYear) {
+      expiryDate = `${m.expiryMonth} ${m.expiryYear}`;
+    }
+  } catch {
+    expiryDate = String(expiryDateRaw || '');
+  }
+  const currentStock = typeof m.currentStock === 'number' ? m.currentStock : Number(m.currentStock || m.totalQuantityOnHand || m.quantityOnHand || 0);
+  const normalized = {
+    ...m,
+    _id: rawMongoId,
+    id: rawMongoId,
+    routeId,
+    medicationName: m.medicationName || m.name || '',
+    sku: m.sku || m.barcodeData || m.barcodeUpc || '',
+    batchLotNumber: m.batchLotNumber || '',
+    category: m.category || '',
+    supplierName: m.supplierName || m.supplier || '',
+    currentStock,
+    expiryDate,
+    photoUrl: m.photoUrl || m.imageUrl || '',
+    shelfId: m.shelfId || '',
+    risk: m.risk || 'Low',
+    brandName: m.brandName || m.brand || '',
+  };
+  return { ...normalized, status: deriveStatus(normalized) };
+}
+
 export const Inventory = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { useDummy } = useDataSource();
 
-  const [medications, setMedications] = useState(DUMMY_MEDICATIONS);
-  const [search, setSearch]           = useState('');
+  const [medications, setMedications] = useState([]);
+  const [loadingInventory, setLoadingInventory] = useState(true);
+  const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterExpiry, setFilterExpiry] = useState('');
   const [filterCategories, setFilterCategories] = useState([]);
   const [onlyExpired, setOnlyExpired] = useState(false);
-  const [page, setPage]               = useState(1);
-  const [modalOpen, setModalOpen]     = useState(false);
+  const [page, setPage] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Normalize API records (Mongo uses _id and Date strings)
-  const normalizeMedication = (m) => {
-    const pick = (...vals) => vals.find((v) => {
-      if (v === 0) return true;
-      return v !== undefined && v !== null && String(v).trim() !== '';
-    });
-
-    const rawMongoId =
-      pick(
-        m?._id?.$oid,
-        typeof m?._id === 'string' ? m._id : '',
-        typeof m?.id === 'string' ? m.id : '',
-        typeof m?.routeId === 'string' ? m.routeId : '',
-        typeof m?.legacyId === 'string' ? m.legacyId : '',
-      ) || '';
-
-    const routeId =
-      pick(
-        rawMongoId,
-        m?.sku,
-        m?.barcodeData,
-        m?.batchLotNumber,
-        m?.lotNumber,
-        m?.barcodeUpc,
-      ) || '';
-
-    const medicationName = m.medicationName || m.name || '';
-    const sku = m.sku || m.barcodeUpc || '';
-    const batchLotNumber = m.batchLotNumber || m.lotNumber || '';
-    const category = m.category || '';
-    const supplierName = m.supplierName || m.supplier || '';
-    const status = m.status || 'In Stock';
-    const currentStock =
-      typeof m.currentStock === 'number'
-        ? m.currentStock
-        : typeof m.totalQuantityOnHand === 'number'
-          ? m.totalQuantityOnHand
-          : typeof m.quantityOnHand === 'number'
-            ? m.quantityOnHand
-            : 0;
-
-    const expiryDateRaw = m.expiryDate || '';
-    let expiryDate = '';
-    try {
-      if (expiryDateRaw) {
-        const d = new Date(expiryDateRaw);
-        expiryDate = isNaN(d.getTime()) ? String(expiryDateRaw) : d.toISOString();
-      } else if (m.expiryMonth && m.expiryYear) {
-        expiryDate = `${m.expiryMonth} ${m.expiryYear}`;
-      }
-    } catch {
-      expiryDate = String(expiryDateRaw || '');
-    }
-
-    return {
-      ...m,
-      _id: rawMongoId,
-      id: rawMongoId,
-      routeId,
-      medicationName,
-      sku,
-      batchLotNumber,
-      category,
-      supplierName,
-      status,
-      currentStock,
-      expiryDate,
-      photoUrl: m.photoUrl || m.imageUrl || '',
-    };
-  };
-
-  // Swap data source
   useEffect(() => {
-    if (useDummy) {
-      setMedications(DUMMY_MEDICATIONS);
-    } else {
-      medicationService.getAll({ limit: 'all' }).then((res) => {
-        if (res?.data) setMedications(res.data.map(normalizeMedication));
-      }).catch(() => setMedications([]));
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === '1') setModalOpen(true);
+  }, [location.search]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const cache = !useDummy ? localStorage.getItem(CACHE_KEY) : null;
+    if (cache) {
+      try {
+        const parsed = JSON.parse(cache);
+        if (Array.isArray(parsed) && parsed.length && mounted) {
+          setMedications(parsed.map(normalizeMedication));
+          setLoadingInventory(false);
+          setRefreshing(true);
+        }
+      } catch {}
     }
+
+    async function loadInventory() {
+      setLoadingInventory(!cache);
+      try {
+        if (useDummy) {
+          if (!mounted) return;
+          setMedications(DUMMY_MEDICATIONS.map(normalizeMedication));
+        } else {
+          const res = await medicationService.getAll({ limit: 'all' });
+          if (!mounted) return;
+          const items = (res?.data || []).map(normalizeMedication);
+          setMedications(items);
+          localStorage.setItem(CACHE_KEY, JSON.stringify(res?.data || []));
+        }
+      } catch {
+        if (mounted && !cache) setMedications([]);
+      } finally {
+        if (mounted) {
+          setLoadingInventory(false);
+          setRefreshing(false);
+        }
+      }
+    }
+
+    loadInventory();
+    return () => { mounted = false; };
   }, [useDummy]);
 
-  // Categories for dropdown (derived from data)
-  const categories = React.useMemo(() => {
+  const categories = useMemo(() => {
     const set = new Set();
-    for (const m of medications) {
-      const c = (m?.category ?? '').toString().trim();
-      if (c) set.add(c);
-    }
+    medications.forEach((m) => m.category && set.add(m.category));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [medications]);
 
-  // Filter
+  const expiryOptions = useMemo(() => {
+    const set = new Set();
+    medications.forEach((m) => {
+      const d = m.expiryDate ? new Date(m.expiryDate) : null;
+      if (d && !Number.isNaN(d.getTime())) {
+        set.add(d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }));
+      }
+    });
+    return Array.from(set);
+  }, [medications]);
+
   const filtered = medications.filter((m) => {
     const q = search.toLowerCase();
-    const matchSearch = !q || (m.medicationName || '').toLowerCase().includes(q) || (m.sku || '').includes(q) || (m.batchLotNumber || '').toLowerCase().includes(q);
+    const matchSearch = !q || m.medicationName.toLowerCase().includes(q) || String(m.sku || '').includes(search) || String(m.batchLotNumber || '').toLowerCase().includes(q);
     const matchStatus = !filterStatus || m.status === filterStatus;
-    const matchExpiry = !filterExpiry || m.expiryDate === filterExpiry;
-    const matchCat    = filterCategories.length === 0 || filterCategories.includes(m.category);
-    const matchExpiredOnly = !onlyExpired || m.status === 'Expiring Soon';
-    return matchSearch && matchStatus && matchExpiry && matchCat && matchExpiredOnly;
+    const expLabel = m.expiryDate ? (() => {
+      const d = new Date(m.expiryDate);
+      return Number.isNaN(d.getTime()) ? String(m.expiryDate) : d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    })() : '';
+    const matchExpiry = !filterExpiry || expLabel === filterExpiry;
+    const matchCategory = filterCategories.length === 0 || filterCategories.includes(m.category);
+    const matchExpired = !onlyExpired || m.status === 'Expired';
+    return matchSearch && matchStatus && matchExpiry && matchCategory && matchExpired;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const safePage   = Math.min(page, totalPages);
-  const slice      = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  const safePage = Math.min(page, totalPages);
+  const slice = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
-  const reset = () => setPage(1);
+  const resetPage = () => setPage(1);
 
-  const thCls = 'py-3 px-4 text-left text-xs font-semibold text-gray-500 bg-white border-b border-gray-100 whitespace-nowrap';
+  const tableRowAction = (med) => {
+    const targetId = med.routeId || med._id || med.id;
+    if (!targetId) return;
+    navigate(`/inventory/${encodeURIComponent(targetId)}`, { state: { medication: med } });
+  };
 
   return (
     <DashboardLayout headerRight={<UserChip user={user} />}>
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-        <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: 0 }}>Inventory</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="px-5 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity whitespace-nowrap"
-          style={{ backgroundColor: '#00808d' }}
-        >
-          Add Medication
-        </button>
+      <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+        <h1 className="text-[52px] md:text-[56px] leading-none font-bold text-gray-900 m-0">Inventory</h1>
+        <button onClick={() => setModalOpen(true)} className="px-6 py-3 rounded-xl text-white font-semibold text-[18px] md:text-sm bg-[#00808d] hover:opacity-90">Add Medication</button>
       </div>
 
-      {/* Filter bar — no label, just controls inline */}
-      <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-        {/* Search */}
-        <div className="relative" style={{ minWidth: '160px', maxWidth: '240px', flex: 1 }}>
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></span>
-          <input
-            type="text"
-            placeholder="Paracetamol 500mg"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); reset(); }}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-[#00808d]"
-            aria-label="Search medications"
-          />
+      <div className="bg-white/80 rounded-[24px] border border-gray-100 p-4 md:p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:hidden mb-5">
+          <div className="relative">
+            <input value={search} onChange={(e) => { setSearch(e.target.value); resetPage(); }} placeholder="Paracetamol 500mg" className="w-full rounded-xl border border-gray-200 pl-6 pr-14 py-4 text-[18px] text-gray-700 placeholder:text-gray-400" />
+            <span className="absolute right-5 top-1/2 -translate-y-1/2"><SearchIcon /></span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="relative">
+              <select value={filterExpiry} onChange={(e) => { setFilterExpiry(e.target.value); resetPage(); }} className="w-full appearance-none rounded-xl border border-gray-200 px-4 py-3 text-[18px] text-gray-600 bg-white">
+                <option value="">Expiry Date</option>
+                {expiryOptions.map((opt) => <option key={opt}>{opt}</option>)}
+              </select>
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"><ChevronDown /></div>
+            </div>
+            <CategoryDropdown categories={categories} selected={filterCategories} onChange={(v) => { setFilterCategories(v); resetPage(); }} />
+            <div className="relative col-span-1">
+              <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); resetPage(); }} className="w-full appearance-none rounded-xl border border-gray-200 px-4 py-3 text-[18px] text-gray-600 bg-white">
+                <option value="">Status</option>
+                <option>In Stock</option><option>Low Stock</option><option>Expiring</option><option>Expired</option><option>Out of Stock</option>
+              </select>
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"><ChevronDown /></div>
+            </div>
+            <label className="col-span-1 flex items-center gap-3 px-1 text-[18px] text-gray-800">
+              <span>Only expired</span>
+              <button type="button" role="switch" aria-checked={onlyExpired} onClick={() => { setOnlyExpired((v) => !v); resetPage(); }} className={`relative w-14 h-8 rounded-full ${onlyExpired ? 'bg-[#00808d]' : 'bg-gray-300'}`}>
+                <span className={`absolute top-1 left-1 w-6 h-6 rounded-full bg-white shadow ${onlyExpired ? 'translate-x-6' : ''} transition-transform`} />
+              </button>
+            </label>
+          </div>
         </div>
 
-        {/* Status */}
-        <div className="relative">
-          <select
-            value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); reset(); }}
-            className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 outline-none cursor-pointer focus:border-[#00808d]"
-            aria-label="Filter by status"
-          >
-            <option value="">Status</option>
-            <option>In Stock</option>
-            <option>Low Stock</option>
-            <option>Expiring Soon</option>
-            <option>Out of Stock</option>
-          </select>
-          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDown /></div>
+        <div className="hidden md:flex items-center gap-4 mb-4 flex-wrap">
+          <div className="relative w-[260px]">
+            <input value={search} onChange={(e) => { setSearch(e.target.value); resetPage(); }} placeholder="Paracetamol 500mg" className="w-full rounded-xl border border-gray-200 pl-12 pr-4 py-3 text-sm text-gray-700 placeholder:text-gray-400" />
+            <span className="absolute left-4 top-1/2 -translate-y-1/2"><SearchIcon color="#9ca3af" /></span>
+          </div>
+          <div className="relative min-w-[150px]">
+            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); resetPage(); }} className="w-full appearance-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-500 bg-white">
+              <option value="">Status</option>
+              <option>In Stock</option><option>Low Stock</option><option>Expiring</option><option>Expired</option><option>Out of Stock</option>
+            </select>
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"><ChevronDown /></div>
+          </div>
+          <div className="relative min-w-[150px]">
+            <select value={filterExpiry} onChange={(e) => { setFilterExpiry(e.target.value); resetPage(); }} className="w-full appearance-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-500 bg-white">
+              <option value="">Expiry Date</option>
+              {expiryOptions.map((opt) => <option key={opt}>{opt}</option>)}
+            </select>
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"><ChevronDown /></div>
+          </div>
+          <CategoryDropdown categories={categories} selected={filterCategories} onChange={(v) => { setFilterCategories(v); resetPage(); }} />
+          <label className="flex items-center gap-3 text-sm text-gray-700 font-medium ml-2">
+            <span>Only expired</span>
+            <button type="button" role="switch" aria-checked={onlyExpired} onClick={() => { setOnlyExpired((v) => !v); resetPage(); }} className={`relative w-12 h-7 rounded-full ${onlyExpired ? 'bg-[#00808d]' : 'bg-gray-300'}`}>
+              <span className={`absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow ${onlyExpired ? 'translate-x-5' : ''} transition-transform`} />
+            </button>
+          </label>
+          {refreshing && <span className="text-xs text-gray-400 ml-auto">Refreshing…</span>}
         </div>
 
-        {/* Expiry Date */}
-        <div className="relative">
-          <select
-            value={filterExpiry}
-            onChange={(e) => { setFilterExpiry(e.target.value); reset(); }}
-            className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-400 outline-none cursor-pointer focus:border-[#00808d]"
-            aria-label="Filter by expiry"
-          >
-            <option value="">Expiry Date</option>
-            <option>Jan 2026</option>
-            <option>Mar 2026</option>
-            <option>Sep 2026</option>
-            <option>Feb 2027</option>
-            <option>Dec 2027</option>
-          </select>
-          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"><ChevronDown /></div>
+        <div className="md:hidden rounded-2xl overflow-hidden border border-gray-100">
+          <div className="grid grid-cols-2 bg-white text-[20px] font-semibold text-gray-500 px-6 py-4 border-b border-gray-200">
+            <div>Medication Name</div>
+            <div>SKU / Barcode</div>
+          </div>
+          {loadingInventory && medications.length === 0 ? (
+            Array.from({ length: 7 }).map((_, idx) => (
+              <div key={idx} className="grid grid-cols-2 gap-4 px-6 py-5 border-b border-gray-100 bg-white">
+                <div className="h-7 rounded bg-gray-100 animate-pulse" />
+                <div className="h-7 rounded bg-gray-100 animate-pulse" />
+              </div>
+            ))
+          ) : slice.length === 0 ? (
+            <div className="px-6 py-8 bg-white text-gray-400">No medications found.</div>
+          ) : slice.map((med) => (
+            <button key={med.routeId || med.id} onClick={() => tableRowAction(med)} className="w-full grid grid-cols-2 gap-4 px-6 py-5 border-b border-gray-100 bg-white text-left">
+              <div className="text-[18px] text-gray-700 leading-tight">{med.medicationName}</div>
+              <div className="text-[18px] text-gray-500 break-all">{med.sku}</div>
+            </button>
+          ))}
         </div>
 
-        {/* Category multi-select */}
-        <CategoryDropdown categories={categories} selected={filterCategories} onChange={(v) => { setFilterCategories(v); reset(); }} />
-
-        {/* Only expired toggle */}
-        <label className="flex items-center gap-2 cursor-pointer ml-1">
-          <span style={{ fontSize: '13px', color: '#374151', fontWeight: 500 }}>Only expired</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={onlyExpired}
-            onClick={() => { setOnlyExpired((v) => !v); reset(); }}
-            style={{
-              width: 38, height: 21, borderRadius: 999, border: 'none', cursor: 'pointer', position: 'relative',
-              backgroundColor: onlyExpired ? '#00808d' : '#d1d5db', transition: 'background-color 0.2s', padding: 0,
-            }}
-            aria-label="Show only expired medications"
-          >
-            <span style={{
-              position: 'absolute', top: 2.5, left: onlyExpired ? 19 : 3,
-              width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff',
-              transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-            }} />
-          </button>
-        </label>
+        <div className="hidden md:block rounded-2xl overflow-hidden border border-gray-100">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white">
+              <thead>
+                <tr>
+                  {['Medication Name', 'SKU / Barcode', 'Batch / Lot Number', 'Expiry Date', 'Current Stock', 'Category', 'Supplier', 'Status'].map((head) => (
+                    <th key={head} className="py-4 px-4 text-left text-xs font-semibold text-gray-500 border-b border-gray-100 whitespace-nowrap">{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loadingInventory && medications.length === 0 ? <SkeletonRows /> : slice.length === 0 ? (
+                  <tr><td colSpan={8} className="py-14 text-center text-sm text-gray-400">No medications found.</td></tr>
+                ) : slice.map((med, idx) => {
+                  const d = med.expiryDate ? new Date(med.expiryDate) : null;
+                  const expiryLabel = d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : '—';
+                  return (
+                    <tr key={med.routeId || med.id || idx} onClick={() => tableRowAction(med)} className={`cursor-pointer hover:bg-[#f8fdfd] ${idx > 0 ? 'border-t border-gray-100' : ''}`}>
+                      <td className="py-4 px-4 text-sm font-medium text-gray-800 whitespace-nowrap">{med.medicationName}</td>
+                      <td className="py-4 px-4 text-sm text-gray-500 whitespace-nowrap">{med.sku}</td>
+                      <td className="py-4 px-4 text-sm text-gray-500 whitespace-nowrap">{med.batchLotNumber}</td>
+                      <td className="py-4 px-4 text-sm text-gray-500 whitespace-nowrap">{expiryLabel}</td>
+                      <td className="py-4 px-4 text-sm text-gray-500">{med.currentStock}</td>
+                      <td className="py-4 px-4 text-sm text-gray-500">{med.category}</td>
+                      <td className="py-4 px-4 text-sm text-gray-500">{med.supplierName}</td>
+                      <td className="py-4 px-4 text-sm"><span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${med.status === 'Expired' || med.status === 'Expiring' ? 'text-red-600 bg-red-50' : med.status === 'Low Stock' ? 'text-amber-700 bg-amber-50' : med.status === 'In Stock' ? 'text-emerald-700 bg-emerald-50' : 'text-gray-600 bg-gray-100'}`}>{med.status}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className={thCls}>Medication Name</th>
-                <th className={thCls}>SKU / Barcode</th>
-                <th className={thCls}>Batch / Lot Number</th>
-                <th className={thCls}>
-                  Expiry Date
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline',marginLeft:3,verticalAlign:'middle' }}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-                </th>
-                <th className={thCls}>Current Stock</th>
-                <th className={thCls}>Category</th>
-                <th className={thCls}>Supplier</th>
-                <th className={thCls}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slice.length === 0 ? (
-                <tr><td colSpan={8} className="py-14 text-center text-sm text-gray-400">No medications found.</td></tr>
-              ) : (
-                slice.map((med, idx) => (
-                  <tr
-                    key={med.routeId || med.id || med._id || idx}
-                    onClick={() => {
-                      const targetId = med.routeId || med._id || med.id || '';
-                      if (!targetId) {
-                        console.warn('Medication row missing route id:', med);
-                        return;
-                      }
-                      navigate(`/inventory/${encodeURIComponent(targetId)}`, { state: { medication: med } });
-                    }}
-                    className={`transition-colors hover:bg-[#f0fafa] cursor-pointer ${idx > 0 ? 'border-t border-gray-100' : ''}`}
-                  >
-                    <td className="py-3 px-4 text-sm font-medium text-gray-800 whitespace-nowrap">{med.medicationName}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.sku}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">{med.batchLotNumber}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600 whitespace-nowrap">
-                      {(() => {
-                        if (!med.expiryDate) return '—';
-                        const d = new Date(med.expiryDate);
-                        return isNaN(d.getTime())
-                          ? String(med.expiryDate)
-                          : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
-                      })()}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{med.currentStock?.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{med.category}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{med.supplierName}</td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{med.status}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <Pagination page={safePage} totalPages={totalPages} onChange={(p) => setPage(p)} />
-      </div>
-
-      {/* Add Medication slide-in */}
       <AddMedicationModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onBulkSave={async (file) => {
           try {
             const r = await medicationService.bulkImport(file);
-            const items = r?.data?.items || [];
-            if (items.length) setMedications((p) => [...items.map(normalizeMedication), ...p]);
-          } catch {}
+            const items = Array.isArray(r?.data) ? r.data : (r?.data?.items || []);
+            if (items.length) {
+              const normalized = items.map(normalizeMedication);
+              setMedications((prev) => [...normalized, ...prev]);
+              if (!useDummy) localStorage.setItem(CACHE_KEY, JSON.stringify([...items, ...medications]));
+            }
+            setModalOpen(false);
+          } catch (error) {
+            alert(error.message || 'Bulk import failed.');
+            throw error;
+          }
         }}
         onBarcodeSave={async (photoFile) => {
           try {
@@ -435,11 +420,10 @@ export const Inventory = () => {
             const created = r?.data;
             if (!created?._id) throw new Error('Medication was created, but no id was returned.');
             setModalOpen(false);
-            navigate(`/inventory/${encodeURIComponent(created._id)}`, {
-              state: { medication: created },
-            });
+            navigate(`/inventory/${encodeURIComponent(created._id)}`, { state: { medication: created } });
           } catch (error) {
             console.error('Failed to scan and create medication:', error);
+            alert(error.message || 'Failed to scan and create medication.');
             throw error;
           }
         }}

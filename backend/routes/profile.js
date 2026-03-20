@@ -1,7 +1,7 @@
 import express from 'express';
 import bcryptjs from 'bcryptjs';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { sendEmail } from '../utils/sendEmail.js';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
 
@@ -52,25 +52,16 @@ router.post('/request-password-reset', async (req, res) => {
 
     const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${rawToken}`;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await sendEmail({
       to: user.email,
       subject: 'ShelfSafe Password Reset',
       html: `
-        <p>Hello ${user.name || 'User'},</p>
-        <p>You requested a password reset for your ShelfSafe account.</p>
-        <p>Click the link below to reset your password:</p>
-        <p><a href="${resetUrl}">${resetUrl}</a></p>
-        <p>This link will expire in 1 hour.</p>
-      `,
+    <p>Hello ${user.name || 'User'},</p>
+    <p>You requested a password reset for your ShelfSafe account.</p>
+    <p>Click the link below to reset your password:</p>
+    <p><a href="${resetUrl}">${resetUrl}</a></p>
+    <p>This link will expire in 1 hour.</p>
+  `,
     });
 
     return res.status(200).json({
@@ -153,17 +144,89 @@ router.put('/', verifyToken, async (req, res) => {
       updateFields.password = await bcryptjs.hash(password.trim(), 10);
     }
 
+
+    const activityEntries = [];
+    const activityTimestamp = new Date();
+
+    if (name !== undefined) {
+      activityEntries.push({
+        action: 'Updated full name',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (phone !== undefined) {
+      activityEntries.push({
+        action: 'Updated phone number',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (employeeId !== undefined) {
+      activityEntries.push({
+        action: 'Updated employee ID',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (userRole !== undefined) {
+      activityEntries.push({
+        action: 'Updated user role',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (pharmacyOrganization !== undefined) {
+      activityEntries.push({
+        action: 'Updated pharmacy organization',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (password !== undefined && password.trim() !== '') {
+      activityEntries.push({
+        action: 'Changed password',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (notifications !== undefined) {
+      activityEntries.push({
+        action: notifications?.email
+          ? 'Enabled email notifications'
+          : 'Disabled email notifications',
+        timestamp: activityTimestamp,
+      });
+    }
+
+    if (twoFactorEnabled !== undefined) {
+      activityEntries.push({
+        action: twoFactorEnabled
+          ? 'Enabled two-factor authentication'
+          : 'Disabled two-factor authentication',
+        timestamp: activityTimestamp,
+      });
+    }
+
+
+
+
+
+    const updateOperation = {
+      $set: updateFields,
+    };
+
+    if (activityEntries.length > 0) {
+      updateOperation.$push = {
+        recentActivity: {
+          $each: activityEntries,
+        },
+      };
+    }
+
     const updateResult = await User.updateOne(
       { _id: req.user.userId },
-      {
-        $set: updateFields,
-        $push: {
-          recentActivity: {
-            action: 'Updated profile details',
-            timestamp: new Date(),
-          },
-        },
-      }
+      updateOperation
     );
 
     if (updateResult.matchedCount === 0) {
@@ -201,22 +264,6 @@ router.put('/', verifyToken, async (req, res) => {
   }
 });
 
-export const requestPasswordReset = async (resetContact) => {
-  const response = await fetch(`${API_BASE_URL}/profile/request-password-reset`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ resetContact }),
-  });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Failed to send reset link');
-  }
-
-  return data;
-};
 
 export default router;
