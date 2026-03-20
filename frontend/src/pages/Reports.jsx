@@ -427,6 +427,10 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
 
 function ShareMenu({ row }) {
   const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({ top: 0, left: 0, width: 280 });
+  const [copiedMessage, setCopiedMessage] = useState('');
+  const buttonRef = useRef(null);
+  const timeoutRef = useRef(null);
   const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
   const normalizedUrl = normalizeReportUrl(row?.fileUrl);
 
@@ -436,95 +440,145 @@ function ShareMenu({ row }) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const showCopiedFeedback = (message) => {
+    setCopiedMessage(message);
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => setCopiedMessage(''), 1800);
+  };
+
+  const updatePosition = () => {
+    if (!buttonRef.current || typeof window === 'undefined') return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const preferredWidth = viewportWidth < 640 ? Math.min(260, viewportWidth - 24) : 280;
+    const left = Math.min(
+      Math.max(12, rect.right - preferredWidth),
+      viewportWidth - preferredWidth - 12,
+    );
+    const top = Math.min(rect.bottom + 10, window.innerHeight - 280);
+    setMenuStyle({ top, left, width: preferredWidth });
+  };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    updatePosition();
+    const handleWindowChange = () => updatePosition();
+    const handleOutside = (event) => {
+      if (buttonRef.current?.contains(event.target)) return;
+      closeMenu();
+    };
+    window.addEventListener('resize', handleWindowChange);
+    window.addEventListener('scroll', handleWindowChange, true);
+    document.addEventListener('mousedown', handleOutside);
+    return () => {
+      window.removeEventListener('resize', handleWindowChange);
+      window.removeEventListener('scroll', handleWindowChange, true);
+      document.removeEventListener('mousedown', handleOutside);
+    };
+  }, [open]);
+
+  useEffect(() => () => {
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+  }, []);
+
   return (
     <>
-      <button
-        type="button"
-        className="transition-opacity hover:opacity-70"
-        title="Share"
-        aria-label="Share report"
-        onClick={() => setOpen(true)}
-      >
-        <IconShare />
-      </button>
+      <div className="relative inline-flex">
+        <button
+          ref={buttonRef}
+          type="button"
+          className="transition-opacity hover:opacity-70"
+          title="Share"
+          aria-label="Share report"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <IconShare />
+        </button>
+      </div>
 
       {open ? (
-        <>
-          <div className="fixed inset-0 z-[100] bg-black/25" onClick={closeMenu} aria-hidden="true" />
-          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-sm overflow-hidden bg-white border border-gray-200 shadow-2xl rounded-2xl pointer-events-auto">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">Share report</h3>
-                  <p className="mt-1 text-xs text-gray-500 break-all">{normalizedUrl || 'No share link available yet.'}</p>
-                </div>
-                <button type="button" onClick={closeMenu} className="p-1 rounded-lg hover:bg-gray-100" aria-label="Close share menu">
-                  <IconX />
-                </button>
-              </div>
-
-              <div className="p-3 space-y-2">
-                <button
-                  type="button"
-                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
-                  onClick={() => {
-                    if (typeof navigator !== 'undefined' && navigator.share && normalizedUrl) {
-                      navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl }).catch(() => {});
-                    }
-                    closeMenu();
-                  }}
-                  disabled={!(typeof navigator !== 'undefined' && navigator.share && normalizedUrl)}
-                >
-                  More share options
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
-                  onClick={() => {
-                    openExternal(buildEmailShareUrl(normalizedUrl, shareTitle));
-                    closeMenu();
-                  }}
-                  disabled={!normalizedUrl}
-                >
-                  Share via Gmail / Email
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
-                  onClick={() => {
-                    openExternal(buildWhatsAppShareUrl(normalizedUrl, shareTitle));
-                    closeMenu();
-                  }}
-                  disabled={!normalizedUrl}
-                >
-                  Share via WhatsApp
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
-                  onClick={() => {
-                    openExternal(buildTwitterShareUrl(normalizedUrl, shareTitle));
-                    closeMenu();
-                  }}
-                  disabled={!normalizedUrl}
-                >
-                  Share via X / Twitter
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
-                  onClick={async () => {
-                    const copied = await copyReportUrl(normalizedUrl);
-                    closeMenu();
-                  }}
-                  disabled={!normalizedUrl}
-                >
-                  Copy share link
-                </button>
-              </div>
+        <div
+          className="fixed z-[101] overflow-hidden bg-white border border-gray-200 shadow-xl rounded-2xl"
+          style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Share report</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Choose how you want to share it.</p>
             </div>
+            <button type="button" onClick={closeMenu} className="p-1 rounded-lg hover:bg-gray-100" aria-label="Close share menu">
+              <IconX />
+            </button>
           </div>
-        </>
+
+          <div className="p-2 space-y-1.5">
+            <button
+              type="button"
+              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.share && normalizedUrl) {
+                  navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl }).catch(() => {});
+                }
+                closeMenu();
+              }}
+              disabled={!(typeof navigator !== 'undefined' && navigator.share && normalizedUrl)}
+            >
+              More share options
+            </button>
+            <button
+              type="button"
+              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
+              onClick={() => {
+                openExternal(buildEmailShareUrl(normalizedUrl, shareTitle));
+                closeMenu();
+              }}
+              disabled={!normalizedUrl}
+            >
+              Share via Gmail / Email
+            </button>
+            <button
+              type="button"
+              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
+              onClick={() => {
+                openExternal(buildWhatsAppShareUrl(normalizedUrl, shareTitle));
+                closeMenu();
+              }}
+              disabled={!normalizedUrl}
+            >
+              Share via WhatsApp
+            </button>
+            <button
+              type="button"
+              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
+              onClick={() => {
+                openExternal(buildTwitterShareUrl(normalizedUrl, shareTitle));
+                closeMenu();
+              }}
+              disabled={!normalizedUrl}
+            >
+              Share via X / Twitter
+            </button>
+            <button
+              type="button"
+              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
+              onClick={async () => {
+                const copied = await copyReportUrl(normalizedUrl);
+                if (copied) showCopiedFeedback('Link copied');
+              }}
+              disabled={!normalizedUrl}
+            >
+              Copy share link
+            </button>
+          </div>
+
+          <div className="min-h-[22px] px-4 pb-3">
+            {copiedMessage ? (
+              <div className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded-full">
+                {copiedMessage}
+              </div>
+            ) : null}
+          </div>
+        </div>
       ) : null}
     </>
   );
@@ -622,6 +676,7 @@ export const Reports = () => {
 
   return (
     <DashboardLayout pageTitle="Reports" headerRight={<UserChip user={user} />}>
+      {/* Header row: title + button same line */}
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
           <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: '0 0 4px' }}>Reports</h1>
@@ -662,6 +717,7 @@ export const Reports = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Search */}
         <div className="relative">
           <input
             type="text"
@@ -711,7 +767,6 @@ export const Reports = () => {
         <div className="mb-3 text-sm text-red-600">{error}</div>
       ) : null}
 
-      {/* Reports table */}
       <div className="overflow-hidden bg-white border border-gray-200 rounded-xl">
         <div className="max-h-[58vh] overflow-auto">
           <table className="w-full border-collapse">
@@ -785,7 +840,6 @@ export const Reports = () => {
         </div>
       </div>
 
-      {/* Generate Report Panel */}
       {panelOpen && (
         <GenerateReportPanel
           onClose={() => setPanelOpen(false)}
