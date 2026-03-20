@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { API_ORIGIN } from '../config/api';
 
-// ─── UserChip ─────────────────────────────────────────────────────────────────
 function UserChip({ user }) {
   const navigate = useNavigate();
   const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'S';
@@ -18,7 +17,6 @@ function UserChip({ user }) {
   );
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
 const IconClock = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00808d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
@@ -73,7 +71,6 @@ const IconX = () => (
   </svg>
 );
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
   'Compliance & Safety Reports',
   'Stock Reports',
@@ -118,36 +115,75 @@ const FORMAT_FILTERS = ['All Formats', 'PDF', 'CSV'];
 
 const API_BASE = API_ORIGIN;
 
+const getClientOrigin = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return 'http://localhost:5173';
+};
+
 const normalizeReportUrl = (fileUrl) => {
   if (!fileUrl) return '';
-  return /^https?:\/\//i.test(fileUrl) ? fileUrl : `${API_ORIGIN}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+  if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
+  const base = API_ORIGIN || getClientOrigin();
+  try {
+    return new URL(fileUrl, base.endsWith('/') ? base : `${base}/`).toString();
+  } catch {
+    return `${base}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+  }
 };
 
 const openReportUrl = (fileUrl) => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
-  if (!normalizedUrl) return;
+  if (!normalizedUrl || typeof window === 'undefined') return;
   window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+};
+
+const copyTextFallback = async (value) => {
+  if (typeof document === 'undefined') return false;
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {}
+  document.body.removeChild(textarea);
+  return ok;
 };
 
 const copyReportUrl = async (fileUrl) => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
-  if (!normalizedUrl) return;
+  if (!normalizedUrl) return false;
   try {
-    await navigator.clipboard.writeText(normalizedUrl);
-    alert('Link copied to clipboard!');
-  } catch (_) {}
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(normalizedUrl);
+      return true;
+    }
+  } catch {}
+  return copyTextFallback(normalizedUrl);
 };
 
 const buildEmailShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
   const subject = encodeURIComponent(`${reportTitle} from ShelfSafe`);
-  const body = encodeURIComponent(`Hi,%0D%0A%0D%0AHere is the report link:%0D%0A${normalizedUrl}`);
+  const body = encodeURIComponent(`Hi,
+
+Here is the report link:
+${normalizedUrl}`);
   return `mailto:?subject=${subject}&body=${body}`;
 };
 
 const buildWhatsAppShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
   return `https://wa.me/?text=${encodeURIComponent(`${reportTitle} - ${normalizedUrl}`)}`;
+};
+
+const buildTwitterShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
+  const normalizedUrl = normalizeReportUrl(fileUrl);
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${reportTitle} ${normalizedUrl}`)}`;
 };
 
 const INFO_CARDS = [
@@ -189,7 +225,6 @@ const INFO_CARDS = [
   },
 ];
 
-// ─── Custom dropdown ──────────────────────────────────────────────────────────
 function Dropdown({ value, onChange, options, placeholder = 'All', className = '' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -249,7 +284,6 @@ function Dropdown({ value, onChange, options, placeholder = 'All', className = '
   );
 }
 
-// ─── Generate Reports Panel ─────────────────���─────────────────────────────────
 function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
   const [reportType, setReportType] = useState(initialType);
   const [reportSubType, setReportSubType] = useState(initialType ? DEFAULT_REPORT_SUBTYPE[initialType] || '' : '');
@@ -268,7 +302,6 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
 
   return (
     <>
-      {/* Backdrop — only covers the content area, not the sidebar */}
       <div
         className="fixed top-0 bottom-0 right-0 z-40 hidden bg-black/30 md:block"
         style={{ left: '218px' }}
@@ -276,9 +309,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
         aria-hidden="true"
       />
 
-      {/* Panel */}
       <div className="fixed top-0 right-0 h-full w-full max-w-[480px] bg-white z-50 flex flex-col shadow-2xl">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">Generate Reports</h2>
           <button
@@ -290,9 +321,7 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 px-6 py-6 space-y-6 overflow-y-auto">
-          {/* Report Type */}
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-800">
               Select a Report Type
@@ -344,7 +373,6 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
             </div>
           ) : null}
 
-          {/* Report Format */}
           <div>
             <p className="mb-3 text-sm font-medium text-gray-800">Report Format</p>
             <div className="space-y-3">
@@ -399,83 +427,110 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
 
 function ShareMenu({ row }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
   const normalizedUrl = normalizeReportUrl(row?.fileUrl);
 
+  const closeMenu = () => setOpen(false);
+  const openExternal = (url) => {
+    if (!url || typeof window === 'undefined') return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        type="button"
         className="transition-opacity hover:opacity-70"
         title="Share"
         aria-label="Share report"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen(true)}
       >
         <IconShare />
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-50 w-48 mt-2 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg top-full">
-          <button
-            type="button"
-            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
-            onClick={() => {
-              window.open(buildEmailShareUrl(normalizedUrl, shareTitle), '_blank', 'noopener,noreferrer');
-              setOpen(false);
-            }}
-          >
-            Share via Gmail / Email
-          </button>
-          <button
-            type="button"
-            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
-            onClick={() => {
-              window.open(buildWhatsAppShareUrl(normalizedUrl, shareTitle), '_blank', 'noopener,noreferrer');
-              setOpen(false);
-            }}
-          >
-            Share via WhatsApp
-          </button>
-          <button
-            type="button"
-            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
-            onClick={async () => {
-              await copyReportUrl(normalizedUrl);
-              setOpen(false);
-            }}
-          >
-            Copy share link
-          </button>
-          {typeof navigator !== 'undefined' && navigator.share ? (
-            <button
-              type="button"
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
-              onClick={async () => {
-                try {
-                  await navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl });
-                } catch (_) {}
-                setOpen(false);
-              }}
-            >
-              More share options
-            </button>
-          ) : null}
-        </div>
+        <>
+          <div className="fixed inset-0 z-[100] bg-black/25" onClick={closeMenu} aria-hidden="true" />
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-sm overflow-hidden bg-white border border-gray-200 shadow-2xl rounded-2xl pointer-events-auto">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Share report</h3>
+                  <p className="mt-1 text-xs text-gray-500 break-all">{normalizedUrl || 'No share link available yet.'}</p>
+                </div>
+                <button type="button" onClick={closeMenu} className="p-1 rounded-lg hover:bg-gray-100" aria-label="Close share menu">
+                  <IconX />
+                </button>
+              </div>
+
+              <div className="p-3 space-y-2">
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.share && normalizedUrl) {
+                      navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl }).catch(() => {});
+                    }
+                    closeMenu();
+                  }}
+                  disabled={!(typeof navigator !== 'undefined' && navigator.share && normalizedUrl)}
+                >
+                  More share options
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => {
+                    openExternal(buildEmailShareUrl(normalizedUrl, shareTitle));
+                    closeMenu();
+                  }}
+                  disabled={!normalizedUrl}
+                >
+                  Share via Gmail / Email
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => {
+                    openExternal(buildWhatsAppShareUrl(normalizedUrl, shareTitle));
+                    closeMenu();
+                  }}
+                  disabled={!normalizedUrl}
+                >
+                  Share via WhatsApp
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={() => {
+                    openExternal(buildTwitterShareUrl(normalizedUrl, shareTitle));
+                    closeMenu();
+                  }}
+                  disabled={!normalizedUrl}
+                >
+                  Share via X / Twitter
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-sm text-left text-gray-700 rounded-lg hover:bg-gray-50"
+                  onClick={async () => {
+                    const copied = await copyReportUrl(normalizedUrl);
+                    if (copied) alert('Link copied to clipboard!');
+                    closeMenu();
+                  }}
+                  disabled={!normalizedUrl}
+                >
+                  Copy share link
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       ) : null}
-    </div>
+    </>
   );
 }
 
-// ─── Main Reports Page ────────────────────────────────────────────────────────
 export const Reports = () => {
   const { user } = useAuth();
   const [panelOpen, setPanelOpen]         = useState(false);
@@ -532,7 +587,6 @@ export const Reports = () => {
 
   useEffect(() => {
     fetchReports();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filterDate, filterType, filterFormat, filterCreatedBy]);
 
   const handleGenerate = async ({ type, subType, format }) => {
@@ -569,7 +623,6 @@ export const Reports = () => {
 
   return (
     <DashboardLayout pageTitle="Reports" headerRight={<UserChip user={user} />}>
-      {/* Header row: title + button same line */}
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
           <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: '0 0 4px' }}>Reports</h1>
@@ -585,7 +638,6 @@ export const Reports = () => {
         </button>
       </div>
 
-      {/* Info Cards — 2×2 grid, each clickable to open Generate Report panel with type pre-filled */}
       <div className="grid grid-cols-1 gap-4 mt-5 mb-8 md:grid-cols-2">
         {INFO_CARDS.map(({ title, Icon, bullets }) => (
           <button
@@ -610,9 +662,7 @@ export const Reports = () => {
         ))}
       </div>
 
-      {/* Filter bar — single row: search then 4 dropdowns */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Search */}
         <div className="relative">
           <input
             type="text"
