@@ -1323,6 +1323,9 @@ section[id] {
     min-height: auto;
     padding: 40px 28px 48px;
   }
+  .step-num{
+    font-size: 21px;
+  }
 
   .accordion-trigger {
     grid-template-columns: 40px 1fr 20px;
