@@ -22,11 +22,18 @@
   --container: 1180px;
   --header-h: 88px;
   --branding-secondary: #003a56;
+  --branding-primary: #00808d;
+  --solution-chip-border: #18e4a1;
+  /* Chip box: content 82×24, padding 8/10, 1px border → total 104×42 */
+  --solution-chip-min-w: 104px;
+  --solution-chip-min-h: 42px;
   --hero-person-w: 520px;
-  --hero-person-h: 522px;
+  --hero-person-h: 322px;
   --hero-logo-w: 406px;
   --hero-logo-h: 103px;
   --hero-min-h: 640px;
+  /* Elevated panel (solution card) — tertiary-style surface */
+  --solution-panel-bg: #f2f4f6;
 }
 
 * { 
@@ -434,44 +441,110 @@ section[id] {
 ================================================================
    [04] SECTION: SOLUTION
    Details about medication waste and environmental impact.
+   Overlaps hero slightly (negative margin) + rounded panel (24px).
 ================================================================ 
 */
+
+/* Pull section up over hero; stack above hero content */
+.solution-section {
+  position: relative;
+  z-index: 5;
+  margin-top: -52px;
+  padding-top: 36px;
+  padding-bottom: 72px;
+}
+
+/* Full-bleed row (replaces .container max-width for this section) */
+.solution-wrap {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  box-sizing: border-box;
+}
+
 .solution-panel {
-  padding: 22px;
+  width: 100%;
+  padding: clamp(36px, 5vw, 60px);
   display: grid;
   grid-template-columns: 1fr 1.18fr;
   gap: 42px;
   align-items: center;
+  background: var(--solution-panel-bg);
+  border-radius: 24px;
+}
+
+.solution-media {
+  flex-shrink: 0;
 }
 
 .solution-media img {
-  width: 100%;
-  aspect-ratio: 1.32 / 1;
+  width: min(100%, 373px);
+  height: auto;
+  aspect-ratio: 74 / 49;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
 
-.chip {
-  color: var(--teal);
-  border: 1px solid rgba(7,153,167,.25);
-  background: #ffffff;
-  padding: 0 12px;
-  margin-bottom: 12px;
+.solution-copy {
+  text-align: left;
+}
+
+/* Solution section only — HTML: <span class="chip"> in .solution-copy */
+.solution-copy .chip {
+  box-sizing: border-box;
+  min-width: var(--solution-chip-min-w);
+  min-height: var(--solution-chip-min-h);
+  padding: 8px 10px;
+  margin-bottom: 16px;
+  border-radius: 9px;
+  border: 1px solid var(--solution-chip-border, #18e4a1);
+  color: var(--branding-primary, #00808d);
+  text-align: center;
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: normal;
+  letter-spacing: -0.16px;
+  text-transform: uppercase;
 }
 
 .solution-copy h2 {
   font-size: clamp(34px, 4vw, 48px);
   margin-bottom: 12px;
+  color: var(--ink);
+  text-align: left;
 }
 
 .solution-copy p { 
   margin: 0 0 16px; 
   font-size: 15px;
   color: #617389;
+  text-align: left;
 }
 
-/* 
+.solution-copy .solution-highlight {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.solution-copy .btn-pill {
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: -0.18px;
+  border-radius: 25px;
+  background: var(--branding-primary, #00808d);
+}
+
+.solution-copy .btn-pill:hover {
+  background: #009eaa;
+}
+
+/*
 ================================================================
    [05] SECTION: WORKFLOW (HOW IT WORKS)
    Interactive accordion with process steps.
@@ -1025,6 +1098,11 @@ section[id] {
 
 /* Tablet - 1080px */
 @media (max-width: 1080px) {
+  .solution-section {
+    margin-top: -40px;
+    padding-top: 28px;
+  }
+
   .hero-grid,
   .solution-panel,
   .workflow-grid,
@@ -1072,6 +1150,17 @@ section[id] {
 
 /* Mobile - 760px */
 @media (max-width: 760px) {
+  .solution-section {
+    margin-top: -28px;
+    padding-top: 20px;
+    padding-bottom: 56px;
+  }
+
+  .solution-panel {
+    padding: 28px 22px;
+    gap: 28px;
+  }
+
   .desktop-nav { display: none; }
   .menu-toggle { display: block; }
 
