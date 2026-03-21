@@ -7,11 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <!-- Page styles: landingPage/styles.css (see file header for HTML ↔ CSS map) -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- ========== HEADER | styles.css § HEADER ========== -->
   <header class="site-header">
     <div class="container nav-wrap">
       <nav class="desktop-nav" aria-label="Primary navigation">
@@ -33,35 +31,33 @@
   </header>
 
   <main id="top">
-    <!-- ========== HERO | styles.css § HERO ========== -->
     <section class="hero">
       <div class="hero-overlay"></div>
       <a href="#top" class="hero-logo" aria-label="ShelfSafe home"></a>
       <div class="container hero-layout">
         <div class="hero-grid">
-        <div class="hero-copy">
-          <h1>
-            <span class="hero-line">Know your inventory,</span>
-            <span class="hero-line">Trust your shelves</span>
-          </h1>
-          <div class="hero-actions">
-            <a class="btn btn-hero-start" href="#contact">Get Started Today!</a>
-            <p class="hero-tagline">Keep stock smart</p>
+          <div class="hero-copy">
+            <h1>
+              <span class="hero-line">Know your inventory,</span>
+              <span class="hero-line">Trust your shelves</span>
+            </h1>
+            <div class="hero-actions">
+              <a class="btn btn-hero-start" href="#contact">Get Started Today!</a>
+              <p class="hero-tagline">Keep stock smart</p>
+            </div>
           </div>
-        </div>
-        <div class="hero-visual" aria-hidden="true">
-          <img class="hero-person" src="assets/man-image.png" alt="" width="520" height="522" />
-        </div>
+          <div class="hero-visual" aria-hidden="true">
+            <img class="hero-person" src="assets/man-image.png" alt="" width="520" height="522" />
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ========== SOLUTION (#solution) | styles.css § SOLUTION + SHARED SECTION LAYOUT ========== -->
     <section id="solution" class="section solution-section">
       <div class="container">
         <div class="panel solution-panel">
           <div class="solution-media">
-            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/solution-photo.png" alt="Pharmacy shelf audit" />
+            <img src="assets/solution-photo.png" alt="Pharmacy shelf audit" />
           </div>
           <div class="solution-copy">
             <span class="chip">SOLUTION</span>
@@ -81,7 +77,6 @@
       </div>
     </section>
 
-    <!-- ========== WORKFLOW (“How it works”) | styles.css § WORKFLOW ========== -->
     <section class="section workflow-section">
       <div class="container workflow-wrap">
         <div class="section-heading center">
@@ -92,63 +87,150 @@
           <div class="workflow-visual">
             <!-- <div class="blob blob-one"></div>
             <div class="blob blob-two"></div> -->
-            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/med-blob.png" alt="Medication illustration" />
+            <img src="assets/med-blob.png" alt="Medication illustration" />
             <a class="btn btn-pill small" href="#contact">Subscribe <span>→</span></a>
           </div>
-          <div class="accordion" id="accordion">
-            <article class="accordion-item active">
-              <button class="accordion-trigger" type="button">
-                <span class="step-num">01</span>
-                <span class="step-title">Monitor your inventory automatically</span>
-                <span class="step-icon">⌄</span>
-              </button>
+          
+          <div class="accordion">
+
+          <div class="accordion-item active">
+            <button class="accordion-trigger">
+              <span class="step-num">01 |</span>
+              <span class="step-title">Monitor your inventory automatically</span>
+              <span class="step-icon">⌄</span>
+            </button>
+            <div class="accordion-content">
+              <p>
+                Shelf Safe connects inventory data into a single dashboard, continuously tracking
+                medication expiry dates and stock levels, no manual shelf checks required.
+              </p>
+            </div>
+          </div>
+        
+          <div class="accordion-item">
+            <button class="accordion-trigger">
+              <span class="step-num">02 |</span>
+              <span class="step-title">Get alerts before issues happen</span>
+              <span class="step-icon">⌄</span>
+            </button>
+            <div class="accordion-content">
+              <p>
+                Automated alerts notify pharmacy staff when medications are approaching expiry or
+                running low, so action can be taken before products become a risk.
+              </p>
+            </div>
+          </div>
+        
+          <div class="accordion-item">
+            <button class="accordion-trigger">
+              <span class="step-num">03 |</span>
+              <span class="step-title">Ensure patient safety</span>
+              <span class="step-icon">⌄</span>
+            </button>
+            <div class="accordion-content">
+              <p>
+                Shelf Safe continuously monitors inventory, providing automated alerts for upcoming
+                expirations and low-stock medications. This allows pharmacy staff to act proactively
+                and guarantee timely access to essential products.
+              </p>
+            </div>
+          </div>
+        
+          <div class="accordion-item">
+            <button class="accordion-trigger">
+              <span class="step-num">04 |</span>
+              <span class="step-title">Minimize environmental impact</span>
+              <span class="step-icon">⌄</span>
+            </button>
+            <div class="accordion-content">
+              <p>
+                By preventing medication expirations, Shelf Safe reduces unnecessary disposal and the
+                emissions associated with incineration. Pharmacies can maintain responsible waste
+                management and support sustainability goals.
+              </p>
+            </div>
+          </div>
+        
+          <div class="accordion-item">
+            <button class="accordion-trigger">
+              <span class="step-num">05 |</span>
+              <span class="step-title">Optimize financial performance</span>
+              <span class="step-icon">⌄</span>
+            </button>
+            <div class="accordion-content">
+              <p>
+                Early detection of at-risk inventory prevents product loss, lowers disposal costs,
+                and improves overall stock efficiency. Shelf Safe enables pharmacies to make
+                data‑driven decisions that protect margins and streamline operations.
+              </p>
+            </div>
+          </div>
+        
+        </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="section benefits-section">
+      <div class="container">
+        <div class="panel benefits-panel">
+          <div class="section-heading center narrow">
+            <h2>Why you’ll love our Inventory Management System?</h2>
+            <p>Experience inventory management that just works. Shelf Safe keeps your pharmacy organized, predictable, and stress-free, giving your team clarity, confidence, and control every day.</p>
+          </div>
+          <div class="benefits-grid">
+            <article class="benefit-card">
+              <span class="benefit-number">01</span>
+              <h3>Improve Efficiency:</h3>
+              <p>Streamline pharmacy workflows, reduce manual tasks, and accelerate inventory processes.</p>
             </article>
-            <article class="accordion-item">
-              <button class="accordion-trigger" type="button">
-                <span class="step-num">02</span>
-                <span class="step-title">Get alerts before issues happen</span>
-                <span class="step-icon">⌄</span>
-              </button>
-              <div class="accordion-content">
-                <p>Receive timely notifications for low stock, expiring lots, and inventory risks before they become expensive problems.</p>
-              </div>
+            <article class="benefit-card">
+              <span class="benefit-number">02</span>
+              <h3>Enhance Financial Performance:</h3>
+              <p>Take control of your inventory to reduce losses, optimize stock, and protect your pharmacy’s bottom line.</p>
             </article>
-            <article class="accordion-item">
-              <button class="accordion-trigger" type="button">
-                <span class="step-num">03</span>
-                <span class="step-title">Ensure patient safety</span>
-                <span class="step-icon">⌄</span>
-              </button>
-              <div class="accordion-content">
-                <p>Make safer dispensing decisions with better visibility into item freshness, movement, and overall inventory health.</p>
-              </div>
+            <article class="benefit-card">
+              <span class="benefit-number">03</span>
+              <h3>Reduce Waste</h3>
+              <p>Prevent unnecessary disposal of expired medications and minimize environmental impact.</p>
             </article>
-            <article class="accordion-item">
-              <button class="accordion-trigger" type="button">
-                <span class="step-num">04</span>
-                <span class="step-title">Minimize environmental impact</span>
-                <span class="step-icon">⌄</span>
-              </button>
-              <div class="accordion-content">
-                <p>Reduce unnecessary disposal of expired medications and limit avoidable pharmacy waste.</p>
-              </div>
+            <article class="benefit-card">
+              <span class="benefit-number">04</span>
+              <h3>Ensure Compliance</h3>
+              <p>Stay compliant with regulatory requirements and avoid penalties.</p>
             </article>
-            <article class="accordion-item">
-              <button class="accordion-trigger" type="button">
-                <span class="step-num">05</span>
-                <span class="step-title">Optimize financial performance</span>
-                <span class="step-icon">⌄</span>
-              </button>
-              <div class="accordion-content">
-                <p>Protect your margins by cutting preventable losses, reducing manual work, and improving stock decisions.</p>
-              </div>
+            <article class="benefit-card">
+              <span class="benefit-number">05</span>
+              <h3>Boost Staff Productivity</h3>
+              <p>Reduce administrative burdens and focus staff on patient care.</p>
             </article>
+            <article class="benefit-card">
+              <span class="benefit-number">06</span>
+              <h3>Leverage Technology</h3>
+              <p>Utilize advanced practice management tools and software.</p>
+            </article>
+          </div>
+          <div class="center-action">
+            <a class="btn btn-pill" href="#contact">Subscribe <span>→</span></a>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ========== FEATURES (#features) | styles.css § FEATURES ========== -->
+    <section class="section cta-band-section">
+      <div class="container">
+        <div class="cta-band">
+          <div>
+            <div class="quote-mark">“</div>
+            <h2>Make inventory control effortless today</h2>
+            <p>Contact us or sign up for our pharmacy inventory services now.</p>
+          </div>
+          <a class="btn btn-white" href="#contact">Get Started Today!</a>
+        </div>
+      </div>
+    </section>
+
     <section id="features" class="section features-section">
       <div class="container">
         <div class="section-heading center">
@@ -159,8 +241,7 @@
         <div class="feature-row top-row">
           <div class="device-card large-device">
             <div class="device-topbar"></div>
-            <!-- UPDATED GRAPH SCREEN -->
-            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Graph-screen.png" alt="Dashboard screen" />
+            <img src="assets/Graph-screen.png" alt="Dashboard screen" />
           </div>
           <ul class="feature-list feature-list-right">
             <li>Expiry &amp; Risk Monitoring.</li>
@@ -171,21 +252,20 @@
 
         <div class="feature-row middle-row">
           <ul class="feature-list feature-list-left">
-            <li>Flexible Inventory Input.</li>
+            <li>Flexible Inventory Input. Add medications in bulk, scan barcodes, or enter items manually to match your pharmacy’s workflow.</li>
             <li>Advanced Filtering &amp; Search.</li>
-            <li>Batch &amp; Expiry-Level Tracking.</li>
+            <li>Batch &amp; Expiry-Level Tracking. Track inventory by SKU, barcode, and lot number.</li>
           </ul>
           <div class="device-card small-device">
             <div class="device-topbar"></div>
-            <!-- UPDATED INVENTORY SCREEN -->
-            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/Inventory-Screen.png" alt="Inventory screen" />
+            <img src="assets/Inventory-Screen.png" alt="Inventory screen" />
           </div>
         </div>
 
         <div class="feature-row bottom-row">
           <div class="device-card medium-device">
             <div class="device-topbar"></div>
-            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/report-Screen-1.png" alt="Reports screen" />
+            <img src="assets/report-Screen.png" alt="Reports screen" />
           </div>
           <ul class="feature-list feature-list-right lower-list">
             <li>Generate different types of Reports.</li>
@@ -196,7 +276,44 @@
       </div>
     </section>
 
-    <!-- ========== TEAM (#team) | styles.css § TEAM ========== -->
+    <section id="pricing" class="section pricing-section">
+      <div class="container">
+        <div class="panel pricing-panel">
+          <div class="section-heading center">
+            <h2>Pricing</h2>
+          </div>
+          <div class="pricing-grid">
+            <article class="price-card dark">
+              <h3 class="head-pricing">Basic</h3>
+              <p class="price">$299 <span>/ month</span></p>
+              <ul>
+                <li>Inventory</li>
+                <li>Dashboard with alerts</li>
+                <li>Reports menu</li>
+              </ul>
+            </article>
+            <article class="price-card featured">
+              <h3 class="head-pricing">Plus</h3>
+              <p class="price">$499 <span>/ month</span></p>
+              <ul>
+                <li>Notification hub</li>
+                <li>Set permissions</li>
+                <li>Two or more users</li>
+              </ul>
+            </article>
+            <article class="price-card dark">
+              <h3 class="head-pricing">Premium</h3>
+              <p class="price">$699 <span>/ month</span></p>
+              <ul>
+                <li>Voice control</li>
+                <li>Support 5 days/week</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="team" class="section team-section">
       <div class="container">
         <div class="section-heading center">
@@ -207,7 +324,7 @@
             <span class="role-badge pm">PM</span>
              <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/gurri.png" alt="Gurpreet Singh" />
             <h3>Gurpreet Singh</h3>
-            <p>Full-Stack Developer</p>
+            <p class = "team-roles">Full-Stack Developer</p>
           </article>
           <article class="team-card">
             <span class="role-badge">Lead</span>
@@ -255,8 +372,6 @@
         </div>
       </div>
     </section>
-
-    <!-- ========== CONTACT (#contact) | styles.css § CONTACT ========== -->
     <section id="contact" class="contact-section">
       <div class="contact-overlay"></div>
       <div class="container contact-wrap">
@@ -281,13 +396,11 @@
             </form>
           </div>
           <div class="contact-brand-area">
-            <img src="https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/logo.png" alt="ShelfSafe" />
+            <img src="assets/logo.png" alt="ShelfSafe" />
           </div>
         </div>
       </div>
     </section>
-    
-
   </main>
 
   <script src="script.js"></script>

@@ -1,28 +1,10 @@
-/* =============================================================================
-   SHELFSAFE LANDING — styles.css
-   
-   HTML-to-CSS map (jump to the matching section comment below):
-   ─────────────────────────────────────────────────────────────────────────────
-   <html> / <body>           § Base & reset, .container
-   <header.site-header>      § HEADER
-   <section.hero>            § HERO
-   Shared UI                 § BUTTONS, SHARED SECTIONS (headings, .section, .panel)
-   #solution                 § SOLUTION
-   .workflow-section         § WORKFLOW (“How it works”)
-   #features                 § FEATURES
-   (not in index.html)       § BENEFITS, PRICING, CTA BAND — kept for reuse
-   #team                     § TEAM
-   #contact                  § CONTACT
-   @media max-width:900px    § RESPONSIVE — tablet
-   @media max-width:760px    § RESPONSIVE — mobile nav & tweaks
-   ============================================================================= */
-
-/* -----------------------------------------------------------------------------
-   § DESIGN TOKENS (:root)
-   HTML: — (global variables for the whole page)
-   ----------------------------------------------------------------------------- */
+/* 
+================================================================
+   [00] VARIABLES, RESET & GLOBAL STYLES
+   Global settings that affect the entire project.
+================================================================ 
+*/
 :root {
-  /* --bg: #f3f3f3; */
   --bg: #ffffff;
   --panel: #f8f8f8;
   --ink: #0b4263;
@@ -47,39 +29,157 @@
   --hero-min-h: 640px;
 }
 
-/* -----------------------------------------------------------------------------
-   § BASE & RESET
-   HTML: <html>, <body> — box model, fonts, links, form controls
-   ----------------------------------------------------------------------------- */
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+* { 
+  box-sizing: border-box; 
+}
+
+html { 
+  scroll-behavior: smooth; 
+}
+
 body {
   margin: 0;
   font-family: 'Inter', sans-serif;
   background: var(--bg);
   color: var(--ink);
+  line-height: 1.5;
 }
-img { max-width: 100%; display: block; }
-a { color: inherit; }
-button, input, textarea { font: inherit; }
+
+img { 
+  max-width: 100%; 
+  display: block; 
+}
+
+a { 
+  color: inherit; 
+  text-decoration: none;
+}
+
+button, input, textarea { 
+  font: inherit; 
+}
 
 section[id] {
   scroll-margin-top: calc(var(--header-h) + 12px);
 }
 
-/* -----------------------------------------------------------------------------
-   § LAYOUT — .container
-   HTML: <div class="container"> (wraps most sections; max width + horizontal margin)
-   ----------------------------------------------------------------------------- */
+/* Layout Container */
 .container {
   width: min(calc(100% - 48px), var(--container));
   margin: 0 auto;
 }
 
-/* =============================================================================
-   § HEADER — HTML: <header class="site-header">
-              .nav-wrap, .desktop-nav, .menu-toggle, .mobile-nav
-   ============================================================================= */
+/* Common Section Spacing */
+.section { 
+  padding: 72px 0; 
+}
+
+/* 
+================================================================
+   [01] SHARED UTILITY COMPONENTS
+   Reusable elements like buttons, chips, and headings.
+================================================================ 
+*/
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.btn:hover { 
+  transform: translateY(-2px); 
+}
+
+.btn-primary,
+.btn-pill {
+  min-height: 46px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  background: var(--teal);
+  color: var(--white);
+  box-shadow: 0 14px 28px rgba(7,153,167,.25);
+}
+
+.btn-primary:hover,
+.btn-pill:hover { 
+  background: var(--teal-2); 
+}
+
+.btn-secondary {
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  background: rgba(255,255,255,.16);
+  color: var(--white);
+  border: 1px solid rgba(255,255,255,.28);
+}
+
+.btn-white {
+  min-height: 46px;
+  padding: 0 24px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  background: var(--white);
+  color: var(--ink);
+}
+
+.btn-pill.small { 
+  min-height: 38px; 
+  padding-inline: 16px; 
+  font-size: 12px; 
+}
+
+/* Panels & Labels */
+.panel {
+  background: var(--panel);
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 0 0 1px rgba(11,66,99,.04);
+}
+
+.eyebrow, .chip, .section-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.section-heading.center {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: clamp(34px, 4.8vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -.05em;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* 
+================================================================
+   [02] SITE HEADER & NAVIGATION
+   Sticky header, desktop links, and mobile menu toggle.
+================================================================ 
+*/
 .site-header {
   position: fixed;
   top: 0;
@@ -139,7 +239,10 @@ section[id] {
 }
 
 .desktop-nav a:hover,
-.mobile-nav a:hover { color: var(--teal); }
+.mobile-nav a:hover {
+  color: var(--teal);
+}
+
 .menu-toggle {
   display: none;
   border: 0;
@@ -148,6 +251,7 @@ section[id] {
   color: var(--branding-secondary, #003a56);
   cursor: pointer;
 }
+
 .mobile-nav {
   display: none;
   padding: 0 24px 18px;
@@ -155,13 +259,11 @@ section[id] {
   flex-direction: column;
   align-items: center;
 }
-.mobile-nav.open { display: flex; }
 
-/* =============================================================================
-   § HERO — HTML: <section class="hero"> … </section>
-              .hero-overlay, .hero-logo, .hero-layout, .hero-grid,
-              .hero-copy, .hero-visual, .hero-person, .hero-line, .hero-actions, .hero-tagline
-   ============================================================================= */
+.mobile-nav.open {
+  display: flex;
+}
+
 .hero {
   position: relative;
   display: flex;
@@ -171,16 +273,15 @@ section[id] {
   padding-top: var(--header-h);
   padding-bottom: 0;
   overflow: hidden;
-  background: url('https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/hero-bg.png') center/cover no-repeat;
+  background: url('assets/hero-bg.png') center/cover no-repeat;
 }
 
-/* Gradient scrim — hero (§ HERO) + contact (§ CONTACT) */
-.hero-overlay,
-.contact-overlay {
+.hero-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, rgba(1, 65, 96, 0.91) 0%, rgba(1, 65, 96, 0.78) 30%, rgba(1, 65, 96, 0.26) 55%, rgba(1, 65, 96, 0.05) 100%);
 }
+
 .hero-layout {
   position: relative;
   z-index: 2;
@@ -192,6 +293,7 @@ section[id] {
   padding-top: 8px;
   padding-bottom: 0;
 }
+
 .hero-logo {
   display: block;
   width: min(var(--hero-logo-w), 42vw);
@@ -204,18 +306,19 @@ section[id] {
   z-index: 4;
   margin: 0;
   text-decoration: none;
-  /* PNG sits on the hero; no fallback color (Figma’s lightgray was showing as a solid block) */
   background-color: transparent;
   background-image: url('assets/logo.png');
   background-repeat: no-repeat;
   background-position: 100% 50%;
   background-size: contain;
 }
+
 .hero-logo:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.85);
   outline-offset: 4px;
   border-radius: 6px;
 }
+
 .hero-grid {
   position: relative;
   z-index: 2;
@@ -227,6 +330,7 @@ section[id] {
   min-height: 0;
   gap: 28px;
 }
+
 .hero-copy {
   max-width: 560px;
   width: 100%;
@@ -244,19 +348,6 @@ section[id] {
   align-items: center;
 }
 
-/* Eyebrow labels — HTML: <span class="chip">, <span class="section-mini"> */
-.chip,
-.section-mini {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
 .hero h1 {
   margin: 0 0 8px;
   font-family: 'Inter', sans-serif;
@@ -268,15 +359,12 @@ section[id] {
   text-align: center;
   width: 100%;
 }
+
 .hero h1 .hero-line {
   display: block;
   white-space: nowrap;
 }
-@media (max-width: 380px) {
-  .hero h1 .hero-line {
-    white-space: normal;
-  }
-}
+
 .hero-actions {
   display: flex;
   flex-direction: column;
@@ -285,6 +373,7 @@ section[id] {
   margin-top: 18px;
   width: 100%;
 }
+
 .hero-tagline {
   margin: 0;
   font-family: 'Inter', sans-serif;
@@ -296,7 +385,6 @@ section[id] {
   letter-spacing: 0.04em;
 }
 
-/* Hero primary CTA — HTML: <a class="btn btn-hero-start"> */
 .btn-hero-start {
   min-height: 44px;
   padding: 0 28px;
@@ -308,49 +396,13 @@ section[id] {
   color: var(--branding-secondary, #003a56);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
 }
+
 .btn-hero-start:hover {
   background: #f8fafb;
   color: var(--branding-secondary, #003a56);
   transform: translateY(-2px);
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
 }
-
-/* -----------------------------------------------------------------------------
-   § BUTTONS — HTML: .btn, .btn-primary, .btn-white, .btn-pill (used site-wide)
-   ----------------------------------------------------------------------------- */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  text-decoration: none;
-  border: 0;
-  cursor: pointer;
-  transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
-}
-.btn:hover { transform: translateY(-2px); }
-.btn-primary,
-.btn-white,
-.btn-pill {
-  min-height: 46px;
-  padding: 0 20px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 800;
-}
-.btn-primary,
-.btn-pill {
-  background: var(--teal);
-  color: var(--white);
-  box-shadow: 0 14px 28px rgba(7,153,167,.25);
-}
-.btn-primary:hover,
-.btn-pill:hover { background: var(--teal-2); }
-.btn-white {
-  background: var(--white);
-  color: var(--ink);
-}
-.btn-pill.small { min-height: 38px; padding-inline: 16px; font-size: 12px; }
 
 .hero-visual {
   position: relative;
@@ -363,6 +415,7 @@ section[id] {
   overflow: visible;
   line-height: 0;
 }
+
 .hero-person {
   position: relative;
   display: block;
@@ -377,59 +430,20 @@ section[id] {
   pointer-events: none;
 }
 
-/* =============================================================================
-   § SHARED SECTION LAYOUT — HTML: .section, .section-heading, .panel (multiple sections)
-              .chip, .section-mini — labels above headings
-   ============================================================================= */
-.section { padding: 72px 0; }
-.panel {
-  background: var(--panel);
-  border-radius: var(--radius-xl);
-  box-shadow: inset 0 0 0 1px rgba(11,66,99,.04);
-}
-.section-heading.center {
-  text-align: center;
-  margin-bottom: 28px;
-}
-.section-heading.center.narrow {
-  max-width: 760px;
-  margin-inline: auto;
-}
-.section-mini {
-  color: var(--teal);
-  margin-bottom: 4px;
-}
-.section-heading h2,
-.solution-copy h2,
-.cta-band h2,
-.contact-form-area h2 {
-  margin: 0;
-  font-size: clamp(34px, 4.8vw, 52px);
-  line-height: 1;
-  letter-spacing: -.05em;
-  font-weight: 900;
-  color: var(--ink);
-}
-.section-heading p,
-.solution-copy p,
-.cta-band p,
-.contact-form-area p {
-  font-size: 14px;
-  line-height: 1.65;
-  color: #617389;
-}
-
-/* =============================================================================
-   § SOLUTION — HTML: <section id="solution" class="section solution-section">
-              .solution-panel, .solution-media, .solution-copy, .chip
-   ============================================================================= */
+/* 
+================================================================
+   [04] SECTION: SOLUTION
+   Details about medication waste and environmental impact.
+================================================================ 
+*/
 .solution-panel {
   padding: 22px;
   display: grid;
   grid-template-columns: 1fr 1.18fr;
-  gap: 28px;
+  gap: 42px;
   align-items: center;
 }
+
 .solution-media img {
   width: 100%;
   aspect-ratio: 1.32 / 1;
@@ -438,7 +452,6 @@ section[id] {
   box-shadow: var(--shadow);
 }
 
-/* “SOLUTION” pill — extends .chip rules under § SHARED SECTION LAYOUT */
 .chip {
   color: var(--teal);
   border: 1px solid rgba(7,153,167,.25);
@@ -446,24 +459,35 @@ section[id] {
   padding: 0 12px;
   margin-bottom: 12px;
 }
+
 .solution-copy h2 {
   font-size: clamp(34px, 4vw, 48px);
   margin-bottom: 12px;
 }
-.solution-copy p { margin: 0 0 12px; }
 
-/* =============================================================================
-   § WORKFLOW — HTML: <section class="section workflow-section"> (“How it works?”)
-              .workflow-wrap, .workflow-grid, .workflow-visual, .accordion, .accordion-item
-   ============================================================================= */
-.workflow-section { padding-top: 10px; }
-.workflow-wrap { position: relative; }
+.solution-copy p { 
+  margin: 0 0 16px; 
+  font-size: 15px;
+  color: #617389;
+}
+
+/* 
+================================================================
+   [05] SECTION: WORKFLOW (HOW IT WORKS)
+   Interactive accordion with process steps.
+================================================================ 
+*/
+.workflow-section { 
+  padding-top: 20px; 
+}
+
 .workflow-grid {
   display: grid;
   grid-template-columns: .82fr 1.18fr;
   gap: 42px;
   align-items: center;
 }
+
 .workflow-visual {
   position: relative;
   min-height: 430px;
@@ -472,211 +496,278 @@ section[id] {
   align-items: center;
   justify-content: center;
 }
-.blob {
-  position: absolute;
-  border-radius: 48% 52% 44% 56% / 58% 42% 58% 42%;
-}
-.blob-one {
-  width: 190px;
-  height: 240px;
-  background: var(--teal);
-  left: 34%;
-  top: 24%;
-  transform: translateX(-50%);
-}
-.blob-two {
-  width: 200px;
-  height: 180px;
-  background: var(--deep);
-  left: 49%;
-  top: 34%;
-  transform: translateX(-50%);
-}
+
 .workflow-visual img {
   width: 25rem;
   position: relative;
   z-index: 2;
   margin-top: 24px;
 }
-.workflow-visual .btn { position: absolute; bottom: 18px; }
-.accordion { display: grid; gap: 14px; }
+
+.workflow-visual .btn { 
+  position: absolute; 
+  bottom: 18px; 
+}
+
+/* Accordion Styles */
+.accordion { 
+  display: grid; 
+  gap: 14px; 
+}
+
 .accordion-item {
   background: #f3f3f3;
   border: 1px solid rgba(10, 51, 78, 0.06);
   border-radius: 18px;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
+
+.accordion-item.active {
+  background: var(--teal);
+  border-color: transparent;
+  color: #ffffff;
+}
+
 .accordion-trigger {
   width: 100%;
   background: transparent;
   border: 0;
   padding: 20px 22px;
   display: grid;
-  grid-template-columns: 48px 1fr 24px;
+  grid-template-columns: 53px 1fr 24px;
   align-items: center;
   gap: 12px;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
+
+.accordion-item.active .accordion-trigger {
+  color: #ffffff;
+}
+
 .step-num {
   font-size: 28px;
-  line-height: 1;
+  line-height: 1.2;
   font-weight: 300;
   color: #557090;
 }
+
+.accordion-item.active .step-num {
+  color: #ffffff;
+}
+
 .step-title {
   font-size: 16px;
   font-weight: 700;
 }
+
 .step-icon {
   font-size: 24px;
   transition: transform .2s ease;
 }
+
 .accordion-content {
   max-height: 0;
   overflow: hidden;
   transition: max-height .28s ease;
 }
+
 .accordion-content p {
   margin: 0;
-  padding: 0 22px 18px 82px;
+  padding: 0 22px 22px 82px;
   font-size: 14px;
   line-height: 1.6;
   color: #677b92;
 }
-.accordion-item.active .accordion-content { max-height: 140px; }
-.accordion-item.active .step-icon { transform: rotate(180deg); }
 
-/* =============================================================================
-   § BENEFITS / PRICING / CTA — not wired in index.html; safe to delete if unused
-              .benefits-panel, .pricing-panel, .cta-band, .price-card, .benefit-card
-   ============================================================================= */
-.benefits-panel { padding: 28px; }
+.accordion-item.active .accordion-content { 
+  max-height: 200px; 
+}
+
+.accordion-item.active .accordion-content p { 
+  color: #e8f8fb; 
+}
+
+.accordion-item.active .step-icon { 
+  transform: rotate(180deg); 
+}
+
+/* 
+================================================================
+   [06] SECTION: BENEFITS
+   Grid of benefit cards.
+================================================================ 
+*/
+.benefits-panel { 
+  padding: 40px 28px; 
+}
+
 .benefits-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
+  gap: 24px;
 }
+
 .benefit-card {
   position: relative;
   min-height: 196px;
-  padding: 28px 20px 22px;
+  padding: 34px 24px 28px;
   background: rgba(255,255,255,.8);
-  border: 1.5px solid rgba(11,66,99,.28);
+  border: 1.5px solid black;
   border-radius: 18px;
   text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
+
+.benefit-card:hover {
+  background: var(--teal);
+  color: white;
+  border-color: transparent;
+}
+
 .benefit-card.active {
   background: var(--teal);
   color: white;
   border-color: transparent;
 }
-.benefit-number {
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid rgba(11,66,99,.18);
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  font-weight: 500;
-}
+
+.benefit-number, 
 .benefit-number-one {
   position: absolute;
-  top: -18px;
+  top: -22px;
   left: 50%;
   transform: translateX(-50%);
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--teal);
-  border: 2px solid rgb(232 232 232 / 83%);
   display: grid;
   place-items: center;
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 800;
+  transition: all 0.3s ease;
 }
+
+.benefit-number {
+  background: #fff;
+  border: 2px solid rgba(11,66,99,.18);
+  color: black;
+}
+
+.benefit-card:hover .benefit-number {
+  background: var(--teal);
+  border: 2px solid #e8e8e8;
+  color: #fff;
+}
+
+.benefit-number-one {
+  background: var(--teal);
+  border: 2px solid #e8e8e8;
+  color: #fff;
+}
+
 .benefit-card h3 {
-  margin: 22px 0 8px;
-  font-size: 18px;
+  margin: 18px 0 10px;
+  font-size: 19px;
   line-height: 1.2;
 }
+
 .benefit-card p {
   margin: 0;
   font-size: 14px;
   line-height: 1.55;
-  color: inherit;
-  opacity: .92;
-}
-.center-action {
-  text-align: center;
-  margin-top: 18px;
+  opacity: .85;
 }
 
-/* CTA band (standalone promo block — not in current index.html) */
+.center-action {
+  text-align: center;
+  margin-top: 32px;
+}
+
+/* 
+================================================================
+   [07] SECTION: CTA BAND
+   High-contrast banner for quick conversion.
+================================================================ 
+*/
 .cta-band {
   background: var(--deep);
   color: white;
-  padding: 36px 42px;
-  border-radius: 18px;
+  padding: 42px 48px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 30px;
 }
+
 .quote-mark {
   font-size: 76px;
   font-weight: 800;
   line-height: .7;
-  opacity: .28;
+  opacity: .2;
   margin-bottom: 4px;
 }
-.cta-band h2,
-.cta-band p { color: white; }
-.cta-band h2 { max-width: 440px; margin-bottom: 10px; }
-.cta-band p { margin: 0; opacity: .88; }
 
-/* =============================================================================
-   § FEATURES — HTML: <section id="features" class="section features-section">
-              .feature-row, .device-card, .feature-list
-   ============================================================================= */
-.features-section { padding-top: 10px; }
+.cta-band h2 { 
+  max-width: 440px; 
+  margin-bottom: 10px; 
+  color: #fff;
+}
+
+.cta-band p { 
+  margin: 0; 
+  opacity: .8; 
+  font-size: 16px;
+}
+
+/* 
+================================================================
+   [08] SECTION: FEATURES
+   Product showcases with device-frame images.
+================================================================ 
+*/
+.features-section { 
+  padding-top: 20px; 
+}
+
 .feature-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 36px;
+  gap: 46px;
   align-items: center;
-  margin-bottom: 46px;
+  margin-bottom: 60px;
 }
-.middle-row { margin-top: 10px; }
-.bottom-row { margin-bottom: 0; }
+
+.feature-row:last-of-type { 
+  margin-bottom: 0; 
+}
+
+/* Device Frame Styles */
 .device-card {
   position: relative;
   border-radius: 12px 12px 18px 18px;
   background: #fdfdfd;
-  box-shadow: 0 10px 28px rgba(5, 24, 42, 0.12);
+  box-shadow: 0 15px 35px rgba(5, 24, 42, 0.12);
   padding: 14px 10px 16px;
-  border-bottom: 3px solid #303030;
+  border-bottom: 4px solid #303030;
 }
+
 .device-topbar {
   height: 8px;
   border-radius: 8px;
   background: linear-gradient(90deg, #eef4f7, #ffffff);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
+
 .device-card img {
   width: 100%;
   border-radius: 6px;
 }
-.large-device { width: min(100%, 520px); }
-.small-device { width: min(100%, 500px); margin-left: auto; }
-.medium-device { width: min(100%, 520px); }
+
+/* Lists with checkmarks */
 .feature-list {
   list-style: none;
   padding: 0;
@@ -684,13 +775,16 @@ section[id] {
   display: grid;
   gap: 22px;
 }
+
 .feature-list li {
   position: relative;
   padding-left: 42px;
   font-size: 16px;
+  font-weight: 500;
   line-height: 1.45;
   color: #1d2e40;
 }
+
 .feature-list li::before {
   content: '✔';
   position: absolute;
@@ -699,84 +793,126 @@ section[id] {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #000;
+  background: var(--ink);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   display: grid;
   place-items: center;
 }
 
-/* (continued) § PRICING — see “BENEFITS / PRICING / CTA” block above */
-.pricing-panel { padding: 28px; }
+/* 
+================================================================
+   [09] SECTION: PRICING
+   Subscription tier grid.
+================================================================ 
+*/
+.head-pricing {
+  display: flex;
+  justify-content: center;
+}
+.pricing-panel { 
+  padding: 48px 28px; 
+}
+
 .pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  gap: 20px;
 }
+
 .price-card {
   min-height: 280px;
-  padding: 28px 26px;
-  border-radius: 18px;
+  padding: 34px 30px;
+  border-radius: 20px;
   color: white;
+  transition: transform 0.3s ease;
 }
+
+.price-card:hover { 
+  transform: translateY(-5px); 
+}
+
 .price-card.dark { background: var(--deep); }
 .price-card.featured { background: var(--teal); }
+
 .price-card h3 {
   margin: 0 0 12px;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
 }
+
 .price {
-  margin: 0 0 22px;
-  font-size: 42px;
+  margin: 0 0 24px;
+  font-size: 35px;
   line-height: 1;
   font-weight: 900;
+  display: flex;
+  justify-content: center;
 }
+
 .price span {
-  font-size: 18px;
-  font-weight: 600;
-  opacity: .92;
+  font-size: 35px;
+  font-weight: 500;
+  opacity: .8;
 }
+
 .price-card ul {
   margin: 0;
   padding-left: 18px;
   display: grid;
-  gap: 14px;
+  justify-content: center;
+  gap: 12px;
   font-size: 15px;
-  line-height: 1.4;
+  opacity: 0.95;
+  list-style: none;
 }
 
-/* =============================================================================
-   § TEAM — HTML: <section id="team" class="section team-section">
-              .team-grid, .team-card, .role-badge
-   ============================================================================= */
-.team-section { padding-top: 10px; }
+/* 
+================================================================
+   [10] SECTION: TEAM
+   Profiles of the designers and developers.
+================================================================ 
+*/
+.team-section { 
+  padding-top: 20px; 
+}
+
 .team-grid {
   display: grid;
-  gap: 18px;
+  gap: 20px;
   justify-content: center;
 }
-.top-team-grid { grid-template-columns: repeat(3, minmax(180px, 220px)); margin-bottom: 18px; }
-.bottom-team-grid { grid-template-columns: repeat(4, minmax(180px, 210px)); }
+
+.top-team-grid { 
+  grid-template-columns: repeat(3, minmax(180px, 240px)); 
+  margin-bottom: 20px; 
+}
+
+.bottom-team-grid { 
+  grid-template-columns: repeat(4, minmax(180px, 220px)); 
+}
+
 .team-card {
   position: relative;
-  background: rgba(255,255,255,.55);
-  border: 1px solid rgba(11,66,99,.06);
-  border-radius: 18px;
-  padding: 18px 18px 16px;
+  background: #fff;
+  border: 1px solid rgba(11,66,99,.08);
+  border-radius: 20px;
+  padding: 24px 18px;
   text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
 }
+
 .team-card img {
-  width: 64px;
-  height: 82px;
+  width: 70px;
+  height: 90px;
   object-fit: cover;
-  /* border-radius: 50%; */
-  margin: 4px auto 12px;
+  margin: 4px auto 16px;
 }
+
 .role-badge {
   position: absolute;
-  top: -8px;
-  left: 16px;
+  top: -10px;
+  left: 20px;
   background: var(--teal);
   color: white;
   min-height: 22px;
@@ -787,203 +923,226 @@ section[id] {
   display: inline-flex;
   align-items: center;
 }
+
 .role-badge.pm { background: #0e7a89; }
+
 .team-card h3 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 18px;
-  line-height: 1.2;
-}
-.team-card p {
-  margin: 0;
-  color: #5f758a;
-  font-size: 14px;
 }
 
-/* =============================================================================
-   § CONTACT — HTML: <section id="contact" class="contact-section">
-              .contact-overlay, .contact-wrap, .contact-card,
-              .contact-form-area, .contact-form, .contact-brand-area
-   ============================================================================= */
+.team-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--teal-2);
+}
+
+/* 
+================================================================
+   [11] SECTION: CONTACT
+   Final section with form and branding background.
+================================================================ 
+*/
 .contact-section {
   position: relative;
-  margin-top: 40px;
-  background: url('https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/contact-bg.png') center/cover no-repeat;
-  padding: 48px 0;
+  margin-top: 60px;
+  background: url('assets/contact-bg.png') center/cover no-repeat;
+  padding: 60px 0;
 }
-.contact-wrap { position: relative; z-index: 2; }
+
+.contact-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(1, 65, 96, 0.85);
+}
+
+.contact-wrap { 
+  position: relative; 
+  z-index: 2; 
+}
+
 .contact-card {
-  min-height: 360px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  align-items: stretch;
-  gap: 26px;
+  gap: 40px;
 }
+
 .contact-form-area {
-  padding: 28px 0;
+  padding: 20px 0;
   color: white;
 }
-.contact-form-area h2,
-.contact-form-area p { color: white; }
-.contact-form-area h2 { margin-bottom: 8px; }
-.contact-form-area p { margin: 0 0 20px; }
-.contact-form {
-  max-width: 420px;
-  display: grid;
-  gap: 12px;
+
+.contact-form-area h2 { 
+  color: #fff; 
+  margin-bottom: 10px;
 }
+
+.contact-form {
+  max-width: 440px;
+  display: grid;
+  gap: 16px;
+}
+
 .contact-form label {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
+
 .contact-form span {
   font-size: 13px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
+
 .contact-form input,
 .contact-form textarea {
   width: 100%;
   border: 0;
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: rgba(255,255,255,.95);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,.98);
   color: var(--ink);
 }
+
 .contact-brand-area {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-.contact-brand-area img {
-  width: min(100%, 340px);
-  filter: drop-shadow(0 10px 16px rgba(0,0,0,.08));
+  justify-content: flex-end;
 }
 
-/* =============================================================================
-   § RESPONSIVE — tablet (max-width: 900px)
-   Touches: hero stack, single-column grids, team/contact tweaks
-   ============================================================================= */
-@media (max-width: 900px) {
+.contact-brand-area img {
+  width: min(100%, 360px);
+  filter: drop-shadow(0 15px 30px rgba(0,0,0,.2));
+}
+
+/* 
+================================================================
+   [12] RESPONSIVE MEDIA QUERIES
+   Adjustments for tablets and mobile devices.
+================================================================ 
+*/
+
+/* Tablet - 1080px */
+@media (max-width: 1080px) {
   .hero-grid,
   .solution-panel,
   .workflow-grid,
   .feature-row,
-  .contact-card { grid-template-columns: 1fr; }
-  .hero {
-    min-height: min(580px, 90vh);
-    padding-bottom: 0;
-    justify-content: flex-start;
+  .contact-card { 
+    grid-template-columns: 1fr; 
   }
-  .hero-logo {
-    top: calc(var(--header-h) + 8px);
-    right: clamp(14px, 4vw, 32px);
-  }
-  .hero-grid {
-    padding: 20px 0 0;
-    grid-template-rows: 1fr auto;
-    align-items: stretch;
-  }
-  .hero-copy {
-    max-width: none;
-    padding: 20px 0 16px;
-    text-align: center;
-    align-items: center;
-    justify-content: center;
-    margin-inline: auto;
-  }
-  .hero-actions { align-items: center; }
-  .hero-tagline { text-align: center; }
-  .hero-visual {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    min-height: 0;
-    height: auto;
-    width: min(100%, 520px);
-    margin: 0 auto;
-    align-self: end;
-  }
-  .hero-person {
-    max-height: min(var(--hero-person-h), 82vw);
-    transform: none;
-    object-fit: contain;
-    object-position: bottom center;
-  }
-  .workflow-visual { order: 2; min-height: 330px; }
-  .accordion { order: 1; }
-  .benefits-grid,
-  .pricing-grid,
-  .bottom-team-grid,
-  .top-team-grid { grid-template-columns: repeat(2, 1fr); }
-  .cta-band { flex-direction: column; align-items: flex-start; }
-  .contact-brand-area { justify-content: flex-start; }
-}
-
-/* =============================================================================
-   § RESPONSIVE — mobile (max-width: 760px)
-   Mobile nav, tighter gaps, single-column pricing/team grids
-   ============================================================================= */
-@media (max-width: 760px) {
-  :root { --header-h: 72px; }
-  .desktop-nav a,
-  .mobile-nav a {
-    font-size: clamp(20px, 4.2vw, 32px);
-  }
-  .nav-wrap { justify-content: flex-end; }
-  .desktop-nav { display: none; }
-  .menu-toggle { display: block; }
-  .container { width: min(calc(100% - 28px), var(--container)); }
-  .hero {
-    min-height: min(500px, 88vh);
-    padding-bottom: 0;
-  }
+  
   .hero-grid {
     gap: 12px;
-    min-height: 0;
-    grid-template-rows: 1fr auto;
-    align-items: stretch;
   }
+
   .hero-copy {
-    padding: 28px 0 20px;
-    justify-content: center;
+    padding: 44px 0 12px;
   }
-  .hero h1 {
-    font-size: clamp(26px, 7vw, 40px);
-  }
-  .hero-visual {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
+
+  .hero-visual { 
     min-height: 0;
-    height: auto;
+    width: min(100%, 600px); 
+    margin: 8px auto 0;
+    justify-content: center;
   }
-  .hero-logo {
-    top: calc(var(--header-h) + 6px);
-    right: clamp(12px, 4vw, 24px);
-    max-width: min(220px, 58vw);
-  }
-  .hero-person {
-    width: min(var(--hero-person-w), 88vw);
-    height: auto;
-    max-height: min(var(--hero-person-h), 78vw);
-    max-width: min(var(--hero-person-w), 100%);
-    transform: none;
-    object-fit: contain;
-    object-position: bottom center;
-  }
-  .solution-panel,
-  .benefits-panel,
-  .pricing-panel { padding: 16px; }
-  .section-heading h2,
-  .solution-copy h2,
-  .cta-band h2,
-  .contact-form-area h2 { font-size: 42px; }
-  .workflow-grid,
-  .feature-row { gap: 24px; }
+  
+  .workflow-visual { order: 2; }
+  .accordion { order: 1; }
+  
   .benefits-grid,
   .pricing-grid,
   .bottom-team-grid,
-  .top-team-grid { grid-template-columns: 1fr; }
-  .team-grid { justify-content: stretch; }
-  .contact-card { gap: 0; }
-  .contact-brand-area { justify-content: center; }
+  .top-team-grid { 
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  
+  .cta-band { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    text-align: left;
+  }
+  
+  .contact-brand-area { 
+    justify-content: center; 
+    margin-top: 40px;
+  }
+}
+
+/* Mobile - 760px */
+@media (max-width: 760px) {
+  .desktop-nav { display: none; }
+  .menu-toggle { display: block; }
+
+  .site-header {
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+  }
+
+  .mobile-nav a {
+    font-size: 24px;
+  }
+
+  .hero {
+    min-height: auto;
+  }
+
+  .hero-logo {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin: 12px auto 0;
+    width: min(240px, 72vw);
+    max-width: 240px;
+  }
+
+  .hero-layout {
+    padding-top: 0;
+  }
+
+  .hero-copy {
+    padding-top: 24px;
+  }
+
+  .hero h1 { font-size: clamp(28px, 8.5vw, 40px); }
+
+  .hero h1 .hero-line {
+    white-space: normal;
+  }
+
+  .hero-tagline {
+    font-size: 10px;
+  }
+
+  .btn-hero-start {
+    min-height: 42px;
+    padding-inline: 22px;
+    font-size: 13px;
+  }
+
+  .hero-person {
+    width: min(100%, 380px);
+    max-height: none;
+    transform: none;
+  }
+  
+  .benefits-grid,
+  .pricing-grid,
+  .bottom-team-grid,
+  .top-team-grid { 
+    grid-template-columns: 1fr; 
+  }
+  
+  .section-heading h2 { font-size: 38px; }
+  .contact-card { gap: 20px; }
+  
+  .accordion-trigger {
+    grid-template-columns: 40px 1fr 20px;
+    padding: 16px;
+  }
+  
+  .accordion-content p {
+    padding-left: 16px;
+  }
 }
