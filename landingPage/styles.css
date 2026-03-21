@@ -27,6 +27,9 @@
   /* Chip box: content 82×24, padding 8/10, 1px border → total 104×42 */
   --solution-chip-min-w: 104px;
   --solution-chip-min-h: 42px;
+  --step-badge-size: 78.795px;
+  --step-badge-stroke: #d1d5db;
+  --step-badge-stroke-w: 4.666px;
   --hero-person-w: 520px;
   --hero-person-h: 322px;
   --hero-logo-w: 406px;
@@ -34,6 +37,20 @@
   --hero-min-h: 640px;
   /* Elevated panel (solution card) — tertiary-style surface */
   --solution-panel-bg: #f2f4f6;
+  /* CTA band — “Make inventory control effortless today” (Figma) */
+  --cta-band-max-w: 1088px;
+  --cta-band-min-h: 487px;
+  --cta-band-pad-left: 183.79px;
+  --cta-band-pad-right: 48px;
+  --cta-band-pad-y: 56px;
+  /* Pricing cards (Figma) */
+  --price-card-w: 307px;
+  --price-card-min-h: 362px;
+  --price-card-radius: 24px;
+  --price-card-pad-top: 56px;
+  --price-card-pad-right: 57px;
+  --price-card-pad-bottom: 80px;
+  --price-card-pad-left: 71px;
 }
 
 * { 
@@ -582,10 +599,10 @@ section[id] {
   bottom: 18px; 
 }
 
-/* Accordion Styles */
-.accordion { 
-  display: grid; 
-  gap: 14px; 
+/* Accordion (How it works) — step numbers inline in row, no top circles */
+.accordion {
+  display: grid;
+  gap: 14px;
 }
 
 .accordion-item {
@@ -593,7 +610,7 @@ section[id] {
   border: 1px solid rgba(10, 51, 78, 0.06);
   border-radius: 18px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .accordion-item.active {
@@ -655,16 +672,16 @@ section[id] {
   color: #677b92;
 }
 
-.accordion-item.active .accordion-content { 
-  max-height: 200px; 
+.accordion-item.active .accordion-content {
+  max-height: 200px;
 }
 
-.accordion-item.active .accordion-content p { 
-  color: #e8f8fb; 
+.accordion-item.active .accordion-content p {
+  color: #e8f8fb;
 }
 
-.accordion-item.active .step-icon { 
-  transform: rotate(180deg); 
+.accordion-item.active .step-icon {
+  transform: rotate(180deg);
 }
 
 /* 
@@ -673,26 +690,37 @@ section[id] {
    Grid of benefit cards.
 ================================================================ 
 */
-.benefits-panel { 
-  padding: 40px 28px; 
+.benefits-panel {
+  padding: 40px 28px;
+}
+
+.benefits-panel .section-heading.center p {
+  margin: 18px auto 0;
+  max-width: 640px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--ink-soft);
 }
 
 .benefits-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  gap: 48px 24px;
+  padding-top: 42px;
 }
 
 .benefit-card {
   position: relative;
   min-height: 196px;
-  padding: 34px 24px 28px;
-  background: rgba(255,255,255,.8);
+  padding: 48px 24px 28px;
+  background: rgba(255, 255, 255, 0.8);
   border: 1.5px solid black;
   border-radius: 18px;
   text-align: center;
   transition: all 0.3s ease;
   cursor: pointer;
+  overflow: visible;
 }
 
 .benefit-card:hover {
@@ -707,51 +735,61 @@ section[id] {
   border-color: transparent;
 }
 
-.benefit-number, 
-.benefit-number-one {
+/* Inventory system steps — same circle spec as Figma (overlap top of card) */
+.benefit-card .benefit-number {
   position: absolute;
-  top: -22px;
   left: 50%;
-  transform: translateX(-50%);
-  width: 44px;
-  height: 44px;
+  top: 0;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  width: var(--step-badge-size);
+  height: var(--step-badge-size);
+  box-sizing: border-box;
+  border: var(--step-badge-stroke-w) solid var(--step-badge-stroke);
   border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  font-weight: 800;
-  transition: all 0.3s ease;
+  background: #ffffff;
+  color: var(--branding-primary, #00808d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-.benefit-number {
-  background: #fff;
-  border: 2px solid rgba(11,66,99,.18);
-  color: black;
-}
-
-.benefit-card:hover .benefit-number {
-  background: var(--teal);
-  border: 2px solid #e8e8e8;
-  color: #fff;
-}
-
-.benefit-number-one {
-  background: var(--teal);
-  border: 2px solid #e8e8e8;
-  color: #fff;
+.benefit-card:hover .benefit-number,
+.benefit-card.active .benefit-number {
+  background: var(--branding-primary, #00808d);
+  color: #ffffff;
+  border-color: var(--step-badge-stroke);
 }
 
 .benefit-card h3 {
-  margin: 18px 0 10px;
-  font-size: 19px;
-  line-height: 1.2;
+  margin: 18px 0 12px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ink);
 }
 
 .benefit-card p {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-  opacity: .85;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  opacity: 0.9;
+  color: var(--ink-soft);
+}
+
+.benefit-card:hover h3,
+.benefit-card:hover p,
+.benefit-card.active h3,
+.benefit-card.active p {
+  color: #fff;
+  opacity: 1;
 }
 
 .center-action {
@@ -766,10 +804,15 @@ section[id] {
 ================================================================ 
 */
 .cta-band {
-  background: var(--deep);
+  width: 100%;
+  max-width: var(--cta-band-max-w);
+  min-height: var(--cta-band-min-h);
+  margin-inline: auto;
+  box-sizing: border-box;
+  background: var(--branding-secondary, #003a56);
   color: white;
-  padding: 42px 48px;
-  border-radius: 20px;
+  padding: 93px;
+  border-radius: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -784,16 +827,23 @@ section[id] {
   margin-bottom: 4px;
 }
 
-.cta-band h2 { 
-  max-width: 440px; 
-  margin-bottom: 10px; 
+.cta-band h2 {
+  max-width: 520px;
+  margin: 0 0 14px;
   color: #fff;
+  font-weight: 800;
+  font-size: clamp(28px, 3.6vw, 40px);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
 }
 
-.cta-band p { 
-  margin: 0; 
-  opacity: .8; 
+.cta-band p {
+  margin: 0;
+  max-width: 520px;
+  color: rgba(255, 255, 255, 0.92);
   font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
 }
 
 /* 
@@ -883,61 +933,92 @@ section[id] {
   display: flex;
   justify-content: center;
 }
-.pricing-panel { 
-  padding: 48px 28px; 
+.pricing-panel {
+  padding: 48px 28px;
+}
+
+.pricing-section .section-heading.center h2 {
+  font-weight: 900;
+  letter-spacing: -0.05em;
 }
 
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, var(--price-card-w)));
   gap: 20px;
-}
-
-.price-card {
-  min-height: 280px;
-  padding: 34px 30px;
-  border-radius: 20px;
-  color: white;
-  transition: transform 0.3s ease;
-}
-
-.price-card:hover { 
-  transform: translateY(-5px); 
-}
-
-.price-card.dark { background: var(--deep); }
-.price-card.featured { background: var(--teal); }
-
-.price-card h3 {
-  margin: 0 0 12px;
-  font-size: 26px;
-  font-weight: 800;
-}
-
-.price {
-  margin: 0 0 24px;
-  font-size: 35px;
-  line-height: 1;
-  font-weight: 900;
-  display: flex;
   justify-content: center;
 }
 
+.price-card {
+  width: 100%;
+  max-width: var(--price-card-w);
+  min-height: var(--price-card-min-h);
+  margin-inline: auto;
+  box-sizing: border-box;
+  padding: var(--price-card-pad-top) var(--price-card-pad-right) var(--price-card-pad-bottom)
+    var(--price-card-pad-left);
+  border-radius: var(--price-card-radius);
+  color: #fff;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.price-card:hover {
+  transform: translateY(-5px);
+}
+
+.price-card.dark {
+  background: var(--branding-secondary, #003a56);
+}
+
+.price-card.featured {
+  background: var(--branding-primary, #00808d);
+}
+
+.price-card h3 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.price {
+  margin: 0 0 40px;
+  font-size: 36px;
+  line-height: 1.1;
+  font-weight: 800;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
 .price span {
-  font-size: 35px;
-  font-weight: 500;
-  opacity: .8;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.2;
+  opacity: 0.95;
 }
 
 .price-card ul {
   margin: 0;
-  padding-left: 18px;
-  display: grid;
-  justify-content: center;
-  gap: 12px;
-  font-size: 15px;
-  opacity: 0.95;
+  padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.price-card li {
+  max-width: 100%;
+  text-align: center;
 }
 
 /* 
@@ -1021,12 +1102,20 @@ section[id] {
   margin-top: 60px;
   background: url('assets/contact-bg.png') center/cover no-repeat;
   padding: 60px 0;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
 }
 
 .contact-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(1, 65, 96, 0.85);
+  z-index: 1;
+  background: linear-gradient(
+    96deg,
+    #003a56 38.05%,
+    rgba(0, 58, 86, 0) 100%
+  );
+  pointer-events: none;
 }
 
 .contact-wrap { 
@@ -1035,9 +1124,9 @@ section[id] {
 }
 
 .contact-card {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  display: block;
+  margin-inline: auto;
+  
 }
 
 .contact-form-area {
@@ -1078,17 +1167,6 @@ section[id] {
   color: var(--ink);
 }
 
-.contact-brand-area {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.contact-brand-area img {
-  width: min(100%, 360px);
-  filter: drop-shadow(0 15px 30px rgba(0,0,0,.2));
-}
-
 /* 
 ================================================================
    [12] RESPONSIVE MEDIA QUERIES
@@ -1106,8 +1184,7 @@ section[id] {
   .hero-grid,
   .solution-panel,
   .workflow-grid,
-  .feature-row,
-  .contact-card { 
+  .feature-row { 
     grid-template-columns: 1fr; 
   }
   
@@ -1136,16 +1213,14 @@ section[id] {
     grid-template-columns: repeat(2, 1fr); 
   }
   
-  .cta-band { 
-    flex-direction: column; 
-    align-items: flex-start; 
+  .cta-band {
+    flex-direction: column;
+    align-items: flex-start;
     text-align: left;
+    min-height: auto;
+    padding: 48px 40px;
   }
   
-  .contact-brand-area { 
-    justify-content: center; 
-    margin-top: 40px;
-  }
 }
 
 /* Mobile - 760px */
@@ -1224,14 +1299,35 @@ section[id] {
   }
   
   .section-heading h2 { font-size: 38px; }
-  .contact-card { gap: 20px; }
-  
+
+  .cta-band {
+    min-height: auto;
+    padding: 36px 24px;
+  }
+
+  .price-card {
+    min-height: auto;
+    padding: 40px 28px 48px;
+  }
+
   .accordion-trigger {
     grid-template-columns: 40px 1fr 20px;
     padding: 16px;
   }
-  
+
   .accordion-content p {
-    padding-left: 16px;
+    padding: 0 16px 18px 56px;
+  }
+
+  .benefits-grid {
+    gap: 40px 20px;
+    padding-top: 36px;
+  }
+
+  .benefit-card .benefit-number {
+    width: min(var(--step-badge-size), 21vw);
+    height: min(var(--step-badge-size), 21vw);
+    font-size: clamp(20px, 5vw, 28px);
+    border-width: 3px;
   }
 }
