@@ -1,3 +1,26 @@
+/* =============================================================================
+   SHELFSAFE LANDING — styles.css
+   
+   HTML-to-CSS map (jump to the matching section comment below):
+   ─────────────────────────────────────────────────────────────────────────────
+   <html> / <body>           § Base & reset, .container
+   <header.site-header>      § HEADER
+   <section.hero>            § HERO
+   Shared UI                 § BUTTONS, SHARED SECTIONS (headings, .section, .panel)
+   #solution                 § SOLUTION
+   .workflow-section         § WORKFLOW (“How it works”)
+   #features                 § FEATURES
+   (not in index.html)       § BENEFITS, PRICING, CTA BAND — kept for reuse
+   #team                     § TEAM
+   #contact                  § CONTACT
+   @media max-width:900px    § RESPONSIVE — tablet
+   @media max-width:760px    § RESPONSIVE — mobile nav & tweaks
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   § DESIGN TOKENS (:root)
+   HTML: — (global variables for the whole page)
+   ----------------------------------------------------------------------------- */
 :root {
   /* --bg: #f3f3f3; */
   --bg: #ffffff;
@@ -24,6 +47,10 @@
   --hero-min-h: 640px;
 }
 
+/* -----------------------------------------------------------------------------
+   § BASE & RESET
+   HTML: <html>, <body> — box model, fonts, links, form controls
+   ----------------------------------------------------------------------------- */
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
@@ -40,11 +67,19 @@ section[id] {
   scroll-margin-top: calc(var(--header-h) + 12px);
 }
 
+/* -----------------------------------------------------------------------------
+   § LAYOUT — .container
+   HTML: <div class="container"> (wraps most sections; max width + horizontal margin)
+   ----------------------------------------------------------------------------- */
 .container {
   width: min(calc(100% - 48px), var(--container));
   margin: 0 auto;
 }
 
+/* =============================================================================
+   § HEADER — HTML: <header class="site-header">
+              .nav-wrap, .desktop-nav, .menu-toggle, .mobile-nav
+   ============================================================================= */
 .site-header {
   position: fixed;
   top: 0;
@@ -122,6 +157,11 @@ section[id] {
 }
 .mobile-nav.open { display: flex; }
 
+/* =============================================================================
+   § HERO — HTML: <section class="hero"> … </section>
+              .hero-overlay, .hero-logo, .hero-layout, .hero-grid,
+              .hero-copy, .hero-visual, .hero-person, .hero-line, .hero-actions, .hero-tagline
+   ============================================================================= */
 .hero {
   position: relative;
   display: flex;
@@ -133,6 +173,8 @@ section[id] {
   overflow: hidden;
   background: url('https://tpclx3x3qrj5lpv5.public.blob.vercel-storage.com/hero-bg.png') center/cover no-repeat;
 }
+
+/* Gradient scrim — hero (§ HERO) + contact (§ CONTACT) */
 .hero-overlay,
 .contact-overlay {
   position: absolute;
@@ -201,6 +243,8 @@ section[id] {
   flex-direction: column;
   align-items: center;
 }
+
+/* Eyebrow labels — HTML: <span class="chip">, <span class="section-mini"> */
 .chip,
 .section-mini {
   display: inline-flex;
@@ -251,6 +295,8 @@ section[id] {
   text-align: center;
   letter-spacing: 0.04em;
 }
+
+/* Hero primary CTA — HTML: <a class="btn btn-hero-start"> */
 .btn-hero-start {
   min-height: 44px;
   padding: 0 28px;
@@ -268,6 +314,10 @@ section[id] {
   transform: translateY(-2px);
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
 }
+
+/* -----------------------------------------------------------------------------
+   § BUTTONS — HTML: .btn, .btn-primary, .btn-white, .btn-pill (used site-wide)
+   ----------------------------------------------------------------------------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -327,6 +377,10 @@ section[id] {
   pointer-events: none;
 }
 
+/* =============================================================================
+   § SHARED SECTION LAYOUT — HTML: .section, .section-heading, .panel (multiple sections)
+              .chip, .section-mini — labels above headings
+   ============================================================================= */
 .section { padding: 72px 0; }
 .panel {
   background: var(--panel);
@@ -365,6 +419,10 @@ section[id] {
   color: #617389;
 }
 
+/* =============================================================================
+   § SOLUTION — HTML: <section id="solution" class="section solution-section">
+              .solution-panel, .solution-media, .solution-copy, .chip
+   ============================================================================= */
 .solution-panel {
   padding: 22px;
   display: grid;
@@ -379,6 +437,8 @@ section[id] {
   border-radius: 18px;
   box-shadow: var(--shadow);
 }
+
+/* “SOLUTION” pill — extends .chip rules under § SHARED SECTION LAYOUT */
 .chip {
   color: var(--teal);
   border: 1px solid rgba(7,153,167,.25);
@@ -392,6 +452,10 @@ section[id] {
 }
 .solution-copy p { margin: 0 0 12px; }
 
+/* =============================================================================
+   § WORKFLOW — HTML: <section class="section workflow-section"> (“How it works?”)
+              .workflow-wrap, .workflow-grid, .workflow-visual, .accordion, .accordion-item
+   ============================================================================= */
 .workflow-section { padding-top: 10px; }
 .workflow-wrap { position: relative; }
 .workflow-grid {
@@ -484,6 +548,10 @@ section[id] {
 .accordion-item.active .accordion-content { max-height: 140px; }
 .accordion-item.active .step-icon { transform: rotate(180deg); }
 
+/* =============================================================================
+   § BENEFITS / PRICING / CTA — not wired in index.html; safe to delete if unused
+              .benefits-panel, .pricing-panel, .cta-band, .price-card, .benefit-card
+   ============================================================================= */
 .benefits-panel { padding: 28px; }
 .benefits-grid {
   display: grid;
@@ -551,6 +619,7 @@ section[id] {
   margin-top: 18px;
 }
 
+/* CTA band (standalone promo block — not in current index.html) */
 .cta-band {
   background: var(--deep);
   color: white;
@@ -573,6 +642,10 @@ section[id] {
 .cta-band h2 { max-width: 440px; margin-bottom: 10px; }
 .cta-band p { margin: 0; opacity: .88; }
 
+/* =============================================================================
+   § FEATURES — HTML: <section id="features" class="section features-section">
+              .feature-row, .device-card, .feature-list
+   ============================================================================= */
 .features-section { padding-top: 10px; }
 .feature-row {
   display: grid;
@@ -633,6 +706,7 @@ section[id] {
   place-items: center;
 }
 
+/* (continued) § PRICING — see “BENEFITS / PRICING / CTA” block above */
 .pricing-panel { padding: 28px; }
 .pricing-grid {
   display: grid;
@@ -672,6 +746,10 @@ section[id] {
   line-height: 1.4;
 }
 
+/* =============================================================================
+   § TEAM — HTML: <section id="team" class="section team-section">
+              .team-grid, .team-card, .role-badge
+   ============================================================================= */
 .team-section { padding-top: 10px; }
 .team-grid {
   display: grid;
@@ -721,6 +799,11 @@ section[id] {
   font-size: 14px;
 }
 
+/* =============================================================================
+   § CONTACT — HTML: <section id="contact" class="contact-section">
+              .contact-overlay, .contact-wrap, .contact-card,
+              .contact-form-area, .contact-form, .contact-brand-area
+   ============================================================================= */
 .contact-section {
   position: relative;
   margin-top: 40px;
@@ -775,7 +858,11 @@ section[id] {
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.08));
 }
 
-@media (max-width: 1080px) {
+/* =============================================================================
+   § RESPONSIVE — tablet (max-width: 900px)
+   Touches: hero stack, single-column grids, team/contact tweaks
+   ============================================================================= */
+@media (max-width: 900px) {
   .hero-grid,
   .solution-panel,
   .workflow-grid,
@@ -831,6 +918,10 @@ section[id] {
   .contact-brand-area { justify-content: flex-start; }
 }
 
+/* =============================================================================
+   § RESPONSIVE — mobile (max-width: 760px)
+   Mobile nav, tighter gaps, single-column pricing/team grids
+   ============================================================================= */
 @media (max-width: 760px) {
   :root { --header-h: 72px; }
   .desktop-nav a,
