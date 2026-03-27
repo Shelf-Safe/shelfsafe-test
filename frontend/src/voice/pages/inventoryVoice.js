@@ -1,0 +1,1 @@
+export { inventoryVoice } from './inventory';

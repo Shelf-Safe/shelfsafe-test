@@ -9,6 +9,7 @@ import medicationRoutes from './routes/medications.js';
 import profileRoutes from './routes/profile.js';
 import posRoutes from './routes/pos.js';
 import reportRoutes from './routes/reports.js';
+import voiceRoutes from './routes/voice.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/api/medications', medicationRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/voice', voiceRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
@@ -58,7 +60,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5003;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

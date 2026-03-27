@@ -1,0 +1,1 @@
+export { profileVoice } from './profileVoiceModule';

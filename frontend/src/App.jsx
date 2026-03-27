@@ -15,12 +15,14 @@ import { EditMedicationPage } from './pages/EditMedicationPage';
 import { Reports } from './pages/Reports';
 import { Profile } from './pages/Profile';
 import { Settings } from './pages/Settings';
+import { VoiceProvider } from './voice/VoiceContext';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <DataSourceProvider>
+        <VoiceProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -39,6 +41,7 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </VoiceProvider>
         </DataSourceProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -6,6 +6,9 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { AddMedicationModal } from '../components/AddMedicationModal';
 import { medicationService } from '../services/medicationService';
 import { DUMMY_MEDICATIONS } from '../data/dummyMedications';
+import { subscribeVoiceAppEvent } from '../voice/eventBus';
+import { useVoicePageSchema, useVoicePageState } from '../voice/cache/useVoicePageRegistration';
+import { INVENTORY_VOICE_SCHEMA } from '../voice/cache/pageSchemas';
 
 const ITEMS_PER_PAGE = 13;
 const CACHE_KEY = 'shelfsafe_inventory_cache';
@@ -264,6 +267,95 @@ export const Inventory = () => {
   const slice = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   const resetPage = () => setPage(1);
+
+
+  const voiceState = useMemo(() => ({
+    visibleMedications: slice.map((item) => item.medicationName).filter(Boolean),
+    knownMedicationNames: medications.map((item) => item.medicationName).filter(Boolean),
+    selectedFilters: {
+      status: filterStatus || null,
+      expiry: filterExpiry || null,
+      categories: filterCategories,
+      onlyExpired,
+    },
+    searchVisible: true,
+    resultCount: filtered.length,
+    currentPage: safePage,
+    totalPages,
+  }), [slice, medications, filterStatus, filterExpiry, filterCategories, onlyExpired, filtered.length, safePage, totalPages]);
+
+  useVoicePageSchema('inventory', INVENTORY_VOICE_SCHEMA);
+  useVoicePageState('inventory', voiceState);
+
+  const inventoryVoiceRef = useRef({});
+  inventoryVoiceRef.current = {
+    setModalOpen,
+    setOnlyExpired,
+    setPage,
+    setSearch,
+    setFilterStatus,
+    totalPages,
+  };
+
+  useEffect(() => {
+    return subscribeVoiceAppEvent((detail) => {
+      const v = inventoryVoiceRef.current;
+      switch (detail.type) {
+        case 'INVENTORY_OPEN_ADD':
+          v.setModalOpen(true);
+          break;
+        case 'INVENTORY_SHOW_EXPIRED':
+          v.setOnlyExpired(true);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_CLEAR_EXPIRED':
+          v.setOnlyExpired(false);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_CLEAR_SEARCH':
+          v.setSearch('');
+          v.setPage(1);
+          break;
+        case 'INVENTORY_NEXT_PAGE':
+          v.setPage((p) => Math.min(v.totalPages, p + 1));
+          break;
+        case 'INVENTORY_PREV_PAGE':
+          v.setPage((p) => Math.max(1, p - 1));
+          break;
+        case 'INVENTORY_FILTER_LOW_STOCK':
+          v.setFilterStatus('Low Stock');
+          v.setOnlyExpired(false);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_FILTER_EXPIRING':
+          v.setFilterStatus('Expiring');
+          v.setOnlyExpired(false);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_FILTER_EXPIRED_STATUS':
+          v.setFilterStatus('Expired');
+          v.setOnlyExpired(false);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_FILTER_OUT_OF_STOCK':
+          v.setFilterStatus('Out of Stock');
+          v.setOnlyExpired(false);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_FILTER_IN_STOCK':
+          v.setFilterStatus('In Stock');
+          v.setOnlyExpired(false);
+          v.setPage(1);
+          break;
+        case 'INVENTORY_SEARCH':
+          v.setSearch(detail.value || '');
+          v.setPage(1);
+          break;
+        default:
+          break;
+      }
+    });
+  }, []);
 
   const tableRowAction = (med) => {
     const targetId = med.routeId || med._id || med.id;

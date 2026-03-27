@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { subscribeVoiceAppEvent } from '../voice/eventBus';
 import { API_ORIGIN } from '../config/api';
 
 function UserChip({ user }) {
@@ -644,6 +645,25 @@ export const Reports = () => {
   useEffect(() => {
     fetchReports();
   }, [search, filterDate, filterType, filterFormat, filterCreatedBy]);
+
+  const reportsVoiceRef = useRef({});
+  reportsVoiceRef.current = { openPanel, setSearch };
+
+  useEffect(() => {
+    return subscribeVoiceAppEvent((detail) => {
+      const v = reportsVoiceRef.current;
+      switch (detail.type) {
+        case 'REPORTS_OPEN_GENERATE':
+          v.openPanel();
+          break;
+        case 'REPORTS_SEARCH':
+          if (detail.value) v.setSearch(detail.value);
+          break;
+        default:
+          break;
+      }
+    });
+  }, []);
 
   const handleGenerate = async ({ type, subType, format }) => {
     try {

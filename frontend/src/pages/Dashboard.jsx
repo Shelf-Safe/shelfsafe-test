@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { PosConnectionModal } from '../components/PosConnectionModal';
 import { medicationService } from '../services/medicationService';
 import { posSyncService } from '../services/posSyncService';
 import { computeDonutData, computeBarData, DonutChart, BarChart } from '../components/DashboardCharts';
-
+import { subscribeVoiceAppEvent } from '../voice/eventBus';
+import { useVoicePageSchema, useVoicePageState } from '../voice/cache/useVoicePageRegistration';
+import { DASHBOARD_VOICE_SCHEMA } from '../voice/cache/pageSchemas';
 
 const DASHBOARD_CACHE_KEY = 'shelfsafe_dashboard_cache';
 const INVENTORY_CACHE_KEY = 'shelfsafe_inventory_cache';
@@ -139,6 +141,7 @@ export const Dashboard = () => {
   const [barData, setBarData] = useState([]);
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const [lastSync, setLastSync] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
@@ -146,6 +149,10 @@ export const Dashboard = () => {
   const [showPosModal, setShowPosModal] = useState(false);
   const [lastSyncChangedItems, setLastSyncChangedItems] = useState([]);
   const [dismissedActionKeys, setDismissedActionKeys] = useState([]);
+  const syncButtonRef = useRef(null);
+  const changePosButtonRef = useRef(null);
+  const disconnectButtonRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const applyCachedDashboard = React.useCallback(() => {
     const dashboardCache = readDashboardCache();
@@ -172,7 +179,19 @@ export const Dashboard = () => {
     return false;
   }, []);
 
-  const handleSort = (column) => {
+  const handleSort = (column, forcedDirection = '', nextPriorityFilter = '') => {
+    if (column === 'priority') {
+      setPriorityFilter(nextPriorityFilter || '');
+    } else {
+      setPriorityFilter('');
+    }
+
+    if (forcedDirection === 'asc' || forcedDirection === 'desc') {
+      setSortBy(column);
+      setSortDir(forcedDirection);
+      return;
+    }
+
     if (sortBy === column) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -180,6 +199,185 @@ export const Dashboard = () => {
       setSortDir('asc');
     }
   };
+
+  const clearDashboardSearch = () => {
+    setSearch('');
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus?.();
+    });
+  };
+
+  const applyDashboardSearch = (value) => {
+    setSearch(value || '');
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus?.();
+    });
+  };
+
+  const clearDashboardSort = () => {
+    setSortBy(null);
+    setSortDir('asc');
+    setPriorityFilter('');
+  };
+
+  const clickDashboardButton = (buttonRef, fallbackSelector = '') => {
+    const refButton = buttonRef?.current || null;
+    let button = refButton;
+
+    if (!button && fallbackSelector) {
+      button = document.querySelector(fallbackSelector);
+    }
+
+    if (!button) {
+      console.log('[Voice] Dashboard button not found for selector:', fallbackSelector);
+      return false;
+    }
+
+    if (button.disabled) {
+      console.log('[Voice] Dashboard button is disabled:', fallbackSelector || button.textContent);
+      return false;
+    }
+
+    button.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    button.focus?.();
+
+    const eventOptions = { bubbles: true, cancelable: true, view: window };
+
+    try {
+      button.dispatchEvent(new PointerEvent('pointerdown', eventOptions));
+    } catch {}
+    try {
+      button.dispatchEvent(new MouseEvent('mousedown', eventOptions));
+    } catch {}
+    try {
+      button.dispatchEvent(new PointerEvent('pointerup', eventOptions));
+    } catch {}
+    try {
+      button.dispatchEvent(new MouseEvent('mouseup', eventOptions));
+    } catch {}
+    try {
+      button.dispatchEvent(new MouseEvent('click', eventOptions));
+    } catch {}
+
+    try {
+      if (typeof button.click === 'function') {
+        button.click();
+      }
+    } catch {}
+
+    return true;
+  };
+
+  const normalizeVoiceNeedle = (value = '') => String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const scoreDashboardItemMatch = (needle, item) => {
+    const query = normalizeVoiceNeedle(needle);
+    if (!query) return 0;
+    const medicationName = normalizeVoiceNeedle(item?.medicationName || '');
+    const sku = normalizeVoiceNeedle(item?.sku || '');
+    const queryCompact = query.replace(/\s+/g, '');
+    const nameCompact = medicationName.replace(/\s+/g, '');
+    const skuCompact = sku.replace(/\s+/g, '');
+    if (medicationName.includes(query) || sku.includes(query)) return 100;
+    if (nameCompact.includes(queryCompact) || skuCompact.includes(queryCompact)) return 95;
+    const queryTokens = query.split(' ').filter(Boolean);
+    const nameTokens = medicationName.split(' ').filter(Boolean);
+    let score = 0;
+    for (const token of queryTokens) {
+      if (nameTokens.includes(token)) score += 18;
+      else if (nameTokens.some((nameToken) => nameToken.startsWith(token) || token.startsWith(nameToken))) score += 12;
+      else if (nameCompact.includes(token) || token.includes(nameCompact.slice(0, Math.min(4, nameCompact.length)))) score += 8;
+    }
+    if (queryCompact && nameCompact.startsWith(queryCompact.slice(0, Math.min(3, queryCompact.length)))) score += 10;
+    return score;
+  };
+
+  const findDashboardItem = (value, sourceItems = actionItems) => {
+    const needle = normalizeVoiceNeedle(value);
+    if (!needle) return null;
+
+    let best = null;
+    let bestScore = 0;
+    for (let i = 0; i < sourceItems.length; i += 1) {
+      const item = sourceItems[i];
+      const score = scoreDashboardItemMatch(needle, item);
+      if (score > bestScore) {
+        best = item;
+        bestScore = score;
+      }
+    }
+
+    return bestScore >= 18 ? best : null;
+  };
+
+  const findDashboardRowActionButton = (value, actionName) => {
+    const needle = normalizeVoiceNeedle(value);
+    if (!needle) return null;
+
+    const rowButtons = Array.from(document.querySelectorAll(`[data-voice-item-action="${actionName}"]`));
+    let best = null;
+    let bestScore = 0;
+    rowButtons.forEach((button) => {
+      const row = {
+        medicationName: String(button.getAttribute('data-voice-row-name') || ''),
+        sku: String(button.getAttribute('data-voice-row-sku') || ''),
+      };
+      const score = scoreDashboardItemMatch(needle, row);
+      if (score > bestScore) {
+        best = button;
+        bestScore = score;
+      }
+    });
+    return bestScore >= 18 ? best : null;
+  };
+
+  const openDashboardItem = (value) => {
+    const item = findDashboardItem(value, sortedFiltered) || findDashboardItem(value, actionItems);
+    if (!item) return false;
+    navigate(`/inventory/${item.id}`);
+    return true;
+  };
+
+  const clickItemActionButton = (item, actionName, rawValue = '') => {
+    if (actionName === 'edit') {
+      return openDashboardItem(rawValue || item?.medicationName || '');
+    }
+
+    const rowButton = findDashboardRowActionButton(rawValue || item?.medicationName || '', actionName);
+    if (rowButton) {
+      rowButton.click();
+      return true;
+    }
+
+    if (!item) return false;
+    const selector = `[data-voice-item-id="${item.id}"][data-voice-item-action="${actionName}"]`;
+    return clickDashboardButton(null, selector);
+  };
+
+  const attemptDashboardItemAction = (value, actionName) => {
+    const immediateVisibleItem = findDashboardItem(value, sortedFiltered);
+    if (clickItemActionButton(immediateVisibleItem, actionName, value)) return true;
+
+    const immediateKnownItem = findDashboardItem(value, actionItems);
+    if (immediateKnownItem) {
+      applyDashboardSearch(value);
+      window.setTimeout(() => {
+        clickItemActionButton(immediateKnownItem, actionName, value);
+      }, 180);
+      return true;
+    }
+
+    applyDashboardSearch(value);
+    window.setTimeout(() => {
+      const delayedVisibleItem = findDashboardItem(value, sortedFiltered);
+      clickItemActionButton(delayedVisibleItem, actionName, value);
+    }, 180);
+    return false;
+  };
+
+  const editDashboardItem = (value) => attemptDashboardItemAction(value, 'edit');
+
+  const deleteDashboardItem = (value) => attemptDashboardItemAction(value, 'delete');
 
   const loadDashboard = React.useCallback((options = {}) => {
     const { silent } = options;
@@ -271,7 +469,9 @@ export const Dashboard = () => {
       )
     : actionItems;
 
-  const filtered = baseFiltered.filter((m) => !dismissedActionKeys.includes(makeActionKey(m)));
+  const filtered = baseFiltered
+    .filter((m) => !dismissedActionKeys.includes(makeActionKey(m)))
+    .filter((m) => (priorityFilter ? getPriority(m).toLowerCase() === priorityFilter.toLowerCase() : true));
 
   const priorityOrder = { High: 3, Mid: 2, Low: 1 };
   const sortedFiltered = (() => {
@@ -306,6 +506,97 @@ export const Dashboard = () => {
       return 0;
     });
   })();
+
+  const dashboardVoiceRef = useRef({});
+  dashboardVoiceRef.current = {
+    clickDashboardButton,
+    syncButtonRef,
+    changePosButtonRef,
+    disconnectButtonRef,
+    syncing,
+    handleSyncClick,
+    applyDashboardSearch,
+    clearDashboardSearch,
+    handleSort,
+    clearDashboardSort,
+    openDashboardItem,
+    editDashboardItem,
+    deleteDashboardItem,
+  };
+
+  useEffect(() => {
+    return subscribeVoiceAppEvent((detail) => {
+      const v = dashboardVoiceRef.current;
+      switch (detail.type) {
+        case 'DASHBOARD_SYNC': {
+          const pressed = v.clickDashboardButton(v.syncButtonRef, '[data-voice-action="dashboard-sync"]');
+          if (!pressed && !v.syncing) {
+            v.handleSyncClick();
+          }
+          break;
+        }
+        case 'DASHBOARD_OPEN_POS':
+          v.clickDashboardButton(v.changePosButtonRef);
+          break;
+        case 'DASHBOARD_DISCONNECT_POS':
+          v.clickDashboardButton(v.disconnectButtonRef);
+          break;
+        case 'DASHBOARD_SEARCH':
+          v.applyDashboardSearch(detail.value || '');
+          break;
+        case 'DASHBOARD_CLEAR_SEARCH':
+          v.clearDashboardSearch();
+          break;
+        case 'DASHBOARD_SORT_PRIORITY':
+          v.handleSort('priority', detail.sortDirection || '', detail.priorityValue || '');
+          break;
+        case 'DASHBOARD_SORT_EXPIRY':
+          v.handleSort('expiry', detail.sortDirection || '');
+          break;
+        case 'DASHBOARD_CLEAR_SORT':
+          v.clearDashboardSort();
+          break;
+        case 'DASHBOARD_OPEN_ITEM':
+          v.openDashboardItem(detail.value || '');
+          break;
+        case 'DASHBOARD_EDIT_ITEM':
+          v.editDashboardItem(detail.value || '');
+          break;
+        case 'DASHBOARD_DELETE_ITEM':
+          v.deleteDashboardItem(detail.value || '');
+          break;
+        default:
+          break;
+      }
+    });
+  }, []);
+
+  const knownMedicationNames = useMemo(() => {
+    const names = readInventoryCache()
+      .map((item) => item?.medicationName || item?.name || '')
+      .filter(Boolean);
+    return Array.from(new Set(names));
+  }, [actionItems]);
+
+  const voiceState = useMemo(() => ({
+    visibleMedications: actionItems.map((item) => item.medicationName).filter(Boolean),
+    knownMedicationNames,
+    alertNames: actionItems.slice(0, 10).map((item) => item.medicationName).filter(Boolean),
+    selectedPosProvider: posConnection?.providerName || null,
+    posModalOpen: !!showPosModal,
+    syncAvailable: !syncing,
+    notificationsOpen: false,
+    searchVisible: true,
+    resultCount: sortedFiltered.length,
+    selectedFilters: {
+      priority: priorityFilter || null,
+      search: search || '',
+    },
+    pageNumber: 1,
+  }), [actionItems, knownMedicationNames, posConnection, showPosModal, syncing, priorityFilter, search, sortedFiltered.length]);
+
+  useVoicePageSchema('dashboard', DASHBOARD_VOICE_SCHEMA);
+  useVoicePageState('dashboard', voiceState);
 
   const { expiring, expired, highRisk, lowStock } = stats;
 
@@ -346,8 +637,10 @@ export const Dashboard = () => {
                 type="button"
                 className="btn btn-primary"
                 onClick={handleSyncClick}
+                ref={syncButtonRef}
                 disabled={syncing}
                 aria-busy={syncing}
+                data-voice-action="dashboard-sync"
               >
                 {syncing ? 'Syncing...' : posConnection ? 'Sync Inventory' : 'Connect POS & Sync'}
               </button>
@@ -376,15 +669,15 @@ export const Dashboard = () => {
             <div className="dash-pos-buttons">
               {posConnection ? (
                 <>
-                  <button type="button" className="btn btn-outline" onClick={() => setShowPosModal(true)}>
+                  <button type="button" className="btn btn-outline" onClick={() => setShowPosModal(true)} ref={changePosButtonRef} data-voice-action="dashboard-change-pos">
                     Change POS
                   </button>
-                  <button type="button" className="btn dash-btn-disconnect" onClick={handleDisconnect}>
+                  <button type="button" className="btn dash-btn-disconnect" onClick={handleDisconnect} ref={disconnectButtonRef} data-voice-action="dashboard-disconnect-pos">
                     Disconnect
                   </button>
                 </>
               ) : (
-                <button type="button" className="btn btn-outline" onClick={() => setShowPosModal(true)}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowPosModal(true)} ref={changePosButtonRef} data-voice-action="dashboard-change-pos">
                   Choose POS
                 </button>
               )}
@@ -435,6 +728,7 @@ export const Dashboard = () => {
                 placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                ref={searchInputRef}
                 aria-label="Search medications"
               />
               <span className="dash-search-icon-right" aria-hidden="true">
@@ -487,6 +781,9 @@ export const Dashboard = () => {
                     key={m.id}
                     className="dash-table-row"
                     onClick={() => navigate(`/inventory/${m.id}`)}
+                    data-voice-row-id={m.id}
+                    data-voice-row-name={m.medicationName}
+                    data-voice-row-sku={m.sku}
                   >
                     <td className="dash-td-name">{m.medicationName}</td>
                     <td>{m.sku}</td>
@@ -495,7 +792,15 @@ export const Dashboard = () => {
                     <td>{m.currentStock}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="dash-action-btns">
-                        <Link to={`/inventory/${m.id}`} className="dash-btn-icon" aria-label="Edit details">
+                        <Link
+                          to={`/inventory/${m.id}`}
+                          className="dash-btn-icon"
+                          aria-label="Edit details"
+                          data-voice-item-id={m.id}
+                          data-voice-item-action="edit"
+                          data-voice-row-name={m.medicationName}
+                          data-voice-row-sku={m.sku}
+                        >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00808d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -505,6 +810,10 @@ export const Dashboard = () => {
                           type="button"
                           className="dash-btn-icon"
                           aria-label="Delete"
+                          data-voice-item-id={m.id}
+                          data-voice-item-action="delete"
+                          data-voice-row-name={m.medicationName}
+                          data-voice-row-sku={m.sku}
                           onClick={async (e) => {
                             e.stopPropagation();
                             const key = makeActionKey(m);

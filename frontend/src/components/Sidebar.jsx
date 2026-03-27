@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import logoBig from '../assets/shelfsafe-big.svg';
 import { useAuth } from '../context/AuthContext';
+import { VoiceLauncher } from '../voice/VoiceLauncher';
 
 const TEAL = '#00808d';
 
@@ -82,6 +83,10 @@ function NavContent({ onClose, mobileActiveClass, iconSize, iconAlwaysTeal, isMo
           </NavLink>
         ))}
       </nav>
+
+      <div className="px-3 pb-5 pt-2">
+        <VoiceLauncher />
+      </div>
     </div>
   );
 }

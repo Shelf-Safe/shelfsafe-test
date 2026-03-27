@@ -1,0 +1,1 @@
+export { dashboardVoice } from './dashboard';

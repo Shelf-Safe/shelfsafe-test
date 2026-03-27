@@ -1,0 +1,2 @@
+export const DEFAULT_DEEPGRAM_MODEL = 'nova-3';
+export const DEFAULT_DEEPGRAM_SAMPLE_RATE = 16000;

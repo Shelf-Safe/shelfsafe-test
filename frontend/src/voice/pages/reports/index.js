@@ -1,0 +1,1 @@
+export { reportsVoice } from './reportsVoiceModule';

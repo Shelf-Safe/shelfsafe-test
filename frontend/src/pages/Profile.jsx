@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { getProfile } from '../services/profileService';
+import { subscribeVoiceAppEvent } from '../voice/eventBus';
+import { useVoicePageSchema, useVoicePageState } from '../voice/cache/useVoicePageRegistration';
+import { PROFILE_VOICE_SCHEMA } from '../voice/cache/pageSchemas';
 
 function IconVerify() {
   return (
@@ -148,6 +151,24 @@ export const Profile = () => {
     logout();
     navigate('/login', { replace: true });
   };
+
+  const profileVoiceState = useMemo(() => ({
+    displayName: displayProfile.name,
+  }), [displayProfile.name]);
+
+  useVoicePageSchema('profile', PROFILE_VOICE_SCHEMA);
+  useVoicePageState('profile', profileVoiceState);
+
+  const profileVoiceRef = useRef({});
+  profileVoiceRef.current = { handleAvatarClick };
+
+  useEffect(() => {
+    return subscribeVoiceAppEvent((detail) => {
+      if (detail.type === 'PROFILE_CHANGE_PHOTO') {
+        profileVoiceRef.current.handleAvatarClick();
+      }
+    });
+  }, []);
 
   const formatActivityTime = (timestamp) => {
     if (!timestamp) return '';
