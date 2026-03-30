@@ -2,9 +2,11 @@ import { API_BASE_URL } from '../config/api';
 import { createVoiceLogger } from '../voice/utils/voiceLogger';
 
 const log = createVoiceLogger('API');
+const DEFAULT_PARSE_TIMEOUT_MS = Math.max(1500, Number(import.meta.env.VITE_VOICE_PARSE_TIMEOUT_MS || 6500) || 6500);
 
 let groqCooldownUntil = 0;
 let groqCooldownReason = '';
+const activeParseControllers = new Set();
 
 function parseRetryDelayMs(message = '') {
   const text = String(message || '');
@@ -40,7 +42,28 @@ function getGroqCooldownState() {
   return { active, retryAfterMs: active ? groqCooldownUntil - Date.now() : 0, reason: groqCooldownReason };
 }
 
-async function parseWithBackend(payload) {
+function mergeAbortSignals(...signals) {
+  const controller = new AbortController();
+  const validSignals = signals.filter(Boolean);
+
+  const abort = (eventOrReason) => {
+    if (controller.signal.aborted) return;
+    const reason = eventOrReason?.target?.reason || eventOrReason?.reason || eventOrReason || new DOMException('Aborted', 'AbortError');
+    controller.abort(reason);
+  };
+
+  validSignals.forEach((signal) => {
+    if (signal.aborted) {
+      abort(signal.reason);
+      return;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+
+  return controller;
+}
+
+async function parseWithBackend(payload, options = {}) {
   const cooldown = getGroqCooldownState();
   if (cooldown.active) {
     const seconds = Math.ceil(cooldown.retryAfterMs / 1000);
@@ -50,26 +73,49 @@ async function parseWithBackend(payload) {
     throw error;
   }
 
-  log.info('Parsing intent via backend', { pageId: payload?.pageId, route: payload?.currentRoute, transcript: payload?.text });
-  const response = await fetch(`${API_BASE_URL}/voice/parse`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const requestController = new AbortController();
+  const timeoutController = new AbortController();
+  const timeoutMs = Math.max(1200, Number(options.timeoutMs) || DEFAULT_PARSE_TIMEOUT_MS);
+  const composite = mergeAbortSignals(options.signal, requestController.signal, timeoutController.signal);
+  activeParseControllers.add(requestController);
+  const timeoutId = window.setTimeout(() => {
+    timeoutController.abort(new DOMException('Voice parse timed out.', 'TimeoutError'));
+  }, timeoutMs);
 
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || !json?.success) {
-    const message = json?.message || 'Unable to parse voice command.';
-    const delayMs = maybeEnterGroqCooldown(message);
-    const error = new Error(message);
-    if (delayMs) {
-      error.code = 'GROQ_COOLDOWN';
-      error.retryAfterMs = delayMs;
+  log.info('Parsing intent via backend', { pageId: payload?.pageId, route: payload?.currentRoute, transcript: payload?.text, timeoutMs });
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/voice/parse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: composite.signal,
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json?.success) {
+      const message = json?.message || 'Unable to parse voice command.';
+      const delayMs = maybeEnterGroqCooldown(message);
+      const error = new Error(message);
+      if (delayMs) {
+        error.code = 'GROQ_COOLDOWN';
+        error.retryAfterMs = delayMs;
+      }
+      throw error;
+    }
+    log.info('Parse response', { type: json?.action?.type, confidence: json?.action?.confidence, normalizedText: json?.action?.normalizedText });
+    return json.action;
+  } catch (error) {
+    if (error?.name === 'AbortError' || error?.name === 'TimeoutError') {
+      const wrapped = new Error(error?.name === 'TimeoutError' ? 'Voice parse timed out.' : 'Voice parse aborted.');
+      wrapped.code = error?.name === 'TimeoutError' ? 'GROQ_TIMEOUT' : 'VOICE_ABORTED';
+      throw wrapped;
     }
     throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+    activeParseControllers.delete(requestController);
   }
-  log.info('Parse response', { type: json?.action?.type, confidence: json?.action?.confidence, normalizedText: json?.action?.normalizedText });
-  return json.action;
 }
 
 async function getDeepgramToken(options = {}) {
@@ -94,8 +140,18 @@ async function getDeepgramToken(options = {}) {
   };
 }
 
+function abortActiveParses(reason = 'Voice session aborted.') {
+  for (const controller of activeParseControllers) {
+    try {
+      controller.abort(reason);
+    } catch {}
+  }
+  activeParseControllers.clear();
+}
+
 export const voiceApiService = {
   parseIntent: parseWithBackend,
   getDeepgramToken,
   getGroqCooldownState,
+  abortActiveParses,
 };

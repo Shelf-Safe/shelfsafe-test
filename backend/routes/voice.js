@@ -27,7 +27,8 @@ router.post('/parse', async (req, res) => {
     log.error('Voice parse route error', error);
     const message = error.message || 'Unable to parse voice command.';
     const isRateLimited = /rate limit|retry in|rate_limit/i.test(message);
-    return res.status(isRateLimited ? 429 : 500).json({ success: false, message });
+    const isTimeout = /timed out/i.test(message) || error?.code === 'GROQ_TIMEOUT';
+    return res.status(isRateLimited ? 429 : isTimeout ? 504 : 500).json({ success: false, message });
   }
 });
 

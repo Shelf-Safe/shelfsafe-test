@@ -4,18 +4,28 @@ import { createSpeechProvider } from './speech/createSpeechProvider';
 import { resolveVoiceIntent } from './orchestrators/resolveVoiceIntent';
 import { createVoiceSessionManager } from './session/createVoiceSessionManager';
 import { createCommandQueue } from './session/createCommandQueue';
+import { createUtteranceStabilizer } from './session/createUtteranceStabilizer';
 import { executeChainPlan } from './execution/executeChainPlan';
 import { createVoiceRuntimeStore } from './runtime/createVoiceRuntimeStore';
 import { createVoiceCacheStore } from './cache/createVoiceCacheStore';
 import { GLOBAL_VOICE_CONFIG } from './cache/globalVoiceConfig';
 import { DASHBOARD_VOICE_SCHEMA, INVENTORY_VOICE_SCHEMA, PROFILE_VOICE_SCHEMA } from './cache/pageSchemas';
 import { routePathToPageId } from './utils/pageId';
-import { createVoiceLogger } from './utils/voiceLogger';
+import { createVoiceLogger, setActiveVoiceLogSession, clearActiveVoiceLogSession } from './utils/voiceLogger';
 import { speakText } from './speech/speakText';
+import { voiceApiService } from '../services/voiceApiService';
 
 const VoiceContext = createContext(null);
 const SPEECH_PROVIDER_NAME = import.meta.env.VITE_VOICE_STT_PROVIDER || 'browser';
 const VOICE_TTS_ENABLED = String(import.meta.env.VITE_VOICE_TTS_ENABLED ?? 'true') === 'true';
+
+function createSessionId(mode = 'single') {
+  return `voice-${mode}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function normalizeTranscriptFingerprint(text = '') {
+  return String(text || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 function syncSpeechHints(cacheStore) {
   const snapshot = cacheStore.getState();
@@ -44,9 +54,11 @@ export function VoiceProvider({ children }) {
   const runtimeStoreRef = useRef(createVoiceRuntimeStore());
   const cacheStoreRef = useRef(createVoiceCacheStore());
   const voiceStateRef = useRef('idle');
-  const lastTranscriptRef = useRef({ text: '', time: 0 });
+  const lastTranscriptRef = useRef({ text: '', time: 0, sessionId: '' });
   const resetStateTimerRef = useRef(null);
   const chainEnabledRef = useRef(false);
+  const activeSessionRef = useRef({ id: '', mode: 'single' });
+  const currentAbortControllerRef = useRef(null);
 
   const [voiceState, setVoiceState] = useState('idle');
   const [isSupported] = useState(Boolean(speechProviderRef.current?.isSupported?.()));
@@ -79,8 +91,17 @@ export function VoiceProvider({ children }) {
     }
   }, [updateVoiceState]);
 
+  const resetAbortController = useCallback(() => {
+    try {
+      currentAbortControllerRef.current?.abort?.('Voice session replaced.');
+    } catch {}
+    currentAbortControllerRef.current = new AbortController();
+    return currentAbortControllerRef.current;
+  }, []);
+
   const executeResolvedCommand = useCallback(async (resolved) => {
     cacheStoreRef.current.patchRuntime({ lastCommand: resolved || null });
+    runtimeStoreRef.current.patch({ lastCommand: resolved || null });
     syncSpeechHints(cacheStoreRef.current);
     setStatusMessage(`Executing ${resolved?.type || 'command'}...`);
     if (!resolved || resolved.type === 'NO_MATCH') {
@@ -97,30 +118,36 @@ export function VoiceProvider({ children }) {
       return;
     }
 
+    updateVoiceState('processing');
+    const signal = currentAbortControllerRef.current?.signal;
+
     if (resolved.type === 'CHAIN' && Array.isArray(resolved.steps)) {
       await executeChainPlan(resolved, {
         runtimeStore: runtimeStoreRef.current,
+        cacheStore: cacheStoreRef.current,
         setStatusMessage,
         setStateWithAutoReset,
         updateVoiceState,
         logger: log,
+        signal,
       });
       return;
     }
-
-    updateVoiceState('processing');
 
     if (resolved.type === 'BATCH' && Array.isArray(resolved.commands)) {
       await executeChainPlan({ type: 'CHAIN', steps: resolved.commands }, {
         runtimeStore: runtimeStoreRef.current,
+        cacheStore: cacheStoreRef.current,
         setStatusMessage,
         setStateWithAutoReset,
         updateVoiceState,
         logger: log,
+        signal,
       });
       return;
     }
 
+    if (signal?.aborted) return;
     emitVoiceAppEvent(resolved);
     if (resolved?.spokenResponse) {
       speakText(resolved.spokenResponse, { enabled: VOICE_TTS_ENABLED });
@@ -131,80 +158,173 @@ export function VoiceProvider({ children }) {
 
   const commandQueueRef = useRef(createCommandQueue({ onExecute: executeResolvedCommand }));
 
-  const processTranscript = useCallback(async ({ transcript, isFinal }) => {
+  const commitTranscriptRef = useRef(async () => {});
+
+  const stabilizerRef = useRef(createUtteranceStabilizer({
+    logger: log,
+    onCommit: (payload) => commitTranscriptRef.current?.(payload),
+  }));
+
+  const processCommittedTranscript = useCallback(async ({ transcript, normalizedTranscript, reason, sessionId, fragments = [] } = {}) => {
     const cleanedTranscript = String(transcript || '').trim();
-    setStatusMessage(isFinal ? `Heard final: ${cleanedTranscript}` : `Hearing: ${cleanedTranscript}`);
     if (!cleanedTranscript) return;
 
+    const fingerprint = normalizeTranscriptFingerprint(normalizedTranscript || cleanedTranscript);
+    const now = Date.now();
+    const sameSession = lastTranscriptRef.current.sessionId === sessionId;
+    if (sameSession && lastTranscriptRef.current.text === fingerprint && now - lastTranscriptRef.current.time < 1600) {
+      log.debug('Skipping duplicate committed transcript', { sessionId, transcript: cleanedTranscript, reason });
+      return;
+    }
+
+    lastTranscriptRef.current = { text: fingerprint, time: now, sessionId };
     setLastHeard(cleanedTranscript);
+    setStatusMessage(`Heard: ${cleanedTranscript}`);
     runtimeStoreRef.current.patch({ lastHeard: cleanedTranscript });
     cacheStoreRef.current.patchRuntime({ lastTranscript: cleanedTranscript });
     syncSpeechHints(cacheStoreRef.current);
 
-    if (!isFinal) return;
-
-    const now = Date.now();
-    if (lastTranscriptRef.current.text === cleanedTranscript.toLowerCase() && now - lastTranscriptRef.current.time < 1500) {
-      return;
-    }
-
-    lastTranscriptRef.current = { text: cleanedTranscript.toLowerCase(), time: now };
-
     const runtime = runtimeStoreRef.current.getState();
     const cacheSnapshot = cacheStoreRef.current.getState();
-    const resolved = await resolveVoiceIntent(cleanedTranscript, {
-      activeContext: runtime.activeContext,
+
+    log.info('Committed transcript', {
+      sessionId,
+      transcript: cleanedTranscript,
+      reason,
+      fragmentCount: fragments.length,
       routePath: runtime.routePath,
       listeningMode: runtime.listeningMode,
-      cacheSnapshot,
     });
 
-    cacheStoreRef.current.patchRuntime({
-      lastNormalizedText: resolved?.normalizedText || '',
-      lastCommand: resolved || null,
-    });
-    cacheStoreRef.current.appendHistory({
-      transcript: cleanedTranscript,
-      resolvedType: resolved?.type || 'NO_MATCH',
-      resolver: resolved?.resolver || 'unknown',
-    });
-    syncSpeechHints(cacheStoreRef.current);
+    try {
+      const resolved = await resolveVoiceIntent(cleanedTranscript, {
+        activeContext: runtime.activeContext,
+        routePath: runtime.routePath,
+        listeningMode: runtime.listeningMode,
+        cacheSnapshot,
+        abortSignal: currentAbortControllerRef.current?.signal,
+      });
 
-    log.info('Resolved transcript', { type: resolved?.type || 'NO_MATCH', resolver: resolved?.resolver || 'unknown', value: resolved?.value || '' });
-    await commandQueueRef.current.enqueue(resolved);
-  }, []);
+      if (currentAbortControllerRef.current?.signal?.aborted) return;
+
+      cacheStoreRef.current.patchRuntime({
+        lastNormalizedText: resolved?.normalizedText || '',
+        lastCommand: resolved || null,
+      });
+      cacheStoreRef.current.appendHistory({
+        transcript: cleanedTranscript,
+        resolvedType: resolved?.type || 'NO_MATCH',
+        resolver: resolved?.resolver || 'unknown',
+        sessionId,
+      });
+      syncSpeechHints(cacheStoreRef.current);
+
+      log.info('Resolved transcript', {
+        sessionId,
+        type: resolved?.type || 'NO_MATCH',
+        resolver: resolved?.resolver || 'unknown',
+        value: resolved?.value || '',
+      });
+      await commandQueueRef.current.enqueue(resolved);
+    } catch (error) {
+      if (error?.code === 'VOICE_ABORTED') {
+        log.warn('Transcript resolution aborted', { sessionId });
+        return;
+      }
+      log.warn('Transcript resolution failed', error);
+      setStatusMessage(error?.message || 'Unable to resolve voice command.');
+      setStateWithAutoReset('error');
+    }
+  }, [log, setStateWithAutoReset]);
+
+  commitTranscriptRef.current = processCommittedTranscript;
 
   const sessionManagerRef = useRef(createVoiceSessionManager({
     provider: speechProviderRef.current,
     onVoiceStateChange: updateVoiceState,
-    onTranscript: processTranscript,
+    onTranscript: ({ transcript, raw, isFinal }) => {
+      const cleanedTranscript = String(transcript || '').trim();
+      if (!cleanedTranscript) return;
+      setStatusMessage(isFinal ? `Heard final: ${cleanedTranscript}` : `Hearing: ${cleanedTranscript}`);
+      setLastHeard(cleanedTranscript);
+      runtimeStoreRef.current.patch({ lastHeard: cleanedTranscript });
+      cacheStoreRef.current.patchRuntime({ lastTranscript: cleanedTranscript });
+      syncSpeechHints(cacheStoreRef.current);
+      stabilizerRef.current.addFragment({
+        transcript: cleanedTranscript,
+        raw,
+        isFinal,
+        sessionId: activeSessionRef.current.id,
+      });
+    },
     onError: (error) => {
       setStatusMessage(error?.message || 'Voice provider error.');
       if (!chainEnabledRef.current) {
         setStateWithAutoReset('error');
       }
     },
+    shouldRecoverChainSession: () => chainEnabledRef.current && !currentAbortControllerRef.current?.signal?.aborted,
   }));
 
-  const stopListening = useCallback(() => {
-    chainEnabledRef.current = false;
+  const beginVoiceSession = useCallback((mode = 'single') => {
+    const sessionId = createSessionId(mode);
+    activeSessionRef.current = { id: sessionId, mode };
+    setActiveVoiceLogSession(sessionId);
+    resetAbortController();
     commandQueueRef.current.clear();
+    runtimeStoreRef.current.patch({ listeningMode: mode, sessionId, lastCommand: null });
+    cacheStoreRef.current.patchRuntime({ listeningMode: mode, sessionId, lastCommand: null });
+    syncSpeechHints(cacheStoreRef.current);
+    stabilizerRef.current.reset();
+    log.info('Voice session started', { sessionId, mode });
+    return sessionId;
+  }, [log, resetAbortController]);
+
+  const stopListening = useCallback(({ flushBuffered = true, abortRunning = false, reason = 'manual_stop', nextMessage = 'Voice control stopped.' } = {}) => {
+    chainEnabledRef.current = false;
+    if (flushBuffered) {
+      stabilizerRef.current.flush(reason);
+    } else {
+      stabilizerRef.current.reset();
+    }
+    if (abortRunning) {
+      try {
+        currentAbortControllerRef.current?.abort?.(nextMessage);
+      } catch {}
+      voiceApiService.abortActiveParses(nextMessage);
+      commandQueueRef.current.clear();
+    }
     sessionManagerRef.current.stop();
-  }, []);
+    setStatusMessage(nextMessage);
+    setStateWithAutoReset('idle');
+    clearActiveVoiceLogSession();
+  }, [setStateWithAutoReset]);
+
+  const abortVoiceSession = useCallback(() => {
+    stopListening({
+      flushBuffered: false,
+      abortRunning: true,
+      reason: 'abort',
+      nextMessage: 'Chain command aborted.',
+    });
+  }, [stopListening]);
 
   const startListening = useCallback((mode = 'single') => {
     setStatusMessage(mode === 'chain' ? 'Starting chain listening...' : 'Starting listening...');
     chainEnabledRef.current = mode === 'chain';
-    runtimeStoreRef.current.patch({ listeningMode: mode });
-    cacheStoreRef.current.patchRuntime({ listeningMode: mode });
-    syncSpeechHints(cacheStoreRef.current);
+    beginVoiceSession(mode);
     setListeningModeState(mode);
     sessionManagerRef.current.start(mode);
-  }, []);
+  }, [beginVoiceSession]);
 
   const toggleListening = useCallback(() => {
     if (voiceStateRef.current === 'listening' || voiceStateRef.current === 'processing') {
-      stopListening();
+      stopListening({
+        flushBuffered: true,
+        abortRunning: voiceStateRef.current === 'processing',
+        reason: 'manual_stop',
+        nextMessage: 'Voice control stopped.',
+      });
       return;
     }
     startListening('single');
@@ -234,7 +354,7 @@ export function VoiceProvider({ children }) {
     cacheStoreRef.current.registerPageSchema(pageId, schema);
     syncSpeechHints(cacheStoreRef.current);
     log.info('Page schema registered', { pageId, actionCount: schema?.actions?.length || 0 });
-  }, []);
+  }, [log]);
 
   const updateVoicePageState = useCallback((pageId, nextState) => {
     cacheStoreRef.current.patchPageState(pageId, nextState);
@@ -244,7 +364,7 @@ export function VoiceProvider({ children }) {
       visibleMedicationCount: nextState?.visibleMedications?.length || 0,
       knownMedicationCount: nextState?.knownMedicationNames?.length || 0,
     });
-  }, []);
+  }, [log]);
 
   const getVoiceCacheSnapshot = useCallback(() => cacheStoreRef.current.getState(), []);
 
@@ -253,6 +373,7 @@ export function VoiceProvider({ children }) {
     isSupported,
     toggleListening,
     stopListening,
+    abortVoiceSession,
     activeContext,
     setActiveContext,
     routePath,
@@ -265,7 +386,7 @@ export function VoiceProvider({ children }) {
     registerVoicePageSchema,
     updateVoicePageState,
     getVoiceCacheSnapshot,
-  }), [voiceState, isSupported, toggleListening, stopListening, activeContext, setActiveContext, routePath, setRoutePath, lastHeard, statusMessage, listeningMode, startChainListening, registerVoicePageSchema, updateVoicePageState, getVoiceCacheSnapshot]);
+  }), [voiceState, isSupported, toggleListening, stopListening, abortVoiceSession, activeContext, setActiveContext, routePath, setRoutePath, lastHeard, statusMessage, listeningMode, startChainListening, registerVoicePageSchema, updateVoicePageState, getVoiceCacheSnapshot]);
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;
 }

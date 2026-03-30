@@ -22,7 +22,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <DataSourceProvider>
-        <VoiceProvider>
+          <VoiceProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -41,7 +41,7 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-        </VoiceProvider>
+          </VoiceProvider>
         </DataSourceProvider>
       </AuthProvider>
     </BrowserRouter>

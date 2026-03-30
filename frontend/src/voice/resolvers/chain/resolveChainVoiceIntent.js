@@ -56,12 +56,55 @@ function trySimpleLocalShortcut(transcript = '', runtime = {}) {
   return null;
 }
 
+function routeForStep(step = {}) {
+  const type = String(step.type || '');
+  if (type === 'NAVIGATE') return step.route || '';
+  if (type.startsWith('DASHBOARD_') || type.startsWith('POS_')) return '/dashboard';
+  if (type.startsWith('INVENTORY_')) return '/inventory';
+  if (type.startsWith('REPORTS_')) return '/reports';
+  if (type.startsWith('PROFILE_')) return '/profile';
+  return '';
+}
+
+function dedupeSteps(steps = []) {
+  const seen = new Set();
+  return steps.filter((step) => {
+    const key = JSON.stringify({
+      type: step.type || '',
+      route: step.route || '',
+      value: step.value || '',
+      providerKey: step.providerKey || '',
+      delayMs: Number(step.delayMs) || 0,
+    });
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function ensureStepNavigation(steps = [], runtime = {}) {
+  const currentRoute = String(runtime.routePath || '/dashboard');
+  const nextSteps = [];
+  let activeRoute = currentRoute;
+
+  for (const step of steps) {
+    const requiredRoute = routeForStep(step);
+    if (requiredRoute && requiredRoute !== activeRoute && step.type !== 'NAVIGATE') {
+      nextSteps.push({ type: 'NAVIGATE', route: requiredRoute, delayMs: 0 });
+      activeRoute = requiredRoute;
+    }
+    nextSteps.push(step);
+    if (step.type === 'NAVIGATE' && step.route) activeRoute = step.route;
+  }
+
+  return dedupeSteps(nextSteps);
+}
+
 function sanitizePlanAgainstTranscript(plan = {}, transcript = '', runtime = {}) {
   const normalized = normalizeText(transcript);
   let steps = Array.isArray(plan.steps) ? [...plan.steps] : [];
   const providerKey = inferProviderKey(transcript);
   const wantsPos = normalized.includes('pos') || normalized.includes('point of sale');
-  const onDashboard = String(runtime.routePath || '') === '/dashboard';
 
   steps = steps.filter((step) => {
     if (!wantsPos && step.type === 'DASHBOARD_OPEN_POS') return false;
@@ -78,29 +121,25 @@ function sanitizePlanAgainstTranscript(plan = {}, transcript = '', runtime = {})
     return step;
   });
 
-  if (wantsPos && providerKey && steps.some((step) => step.type === 'DASHBOARD_OPEN_POS') && !steps.some((step) => step.type === 'POS_SELECT_PROVIDER')) {
-    steps.push({ type: 'POS_SELECT_PROVIDER', providerKey, autoSubmit: true, delayMs: 900 });
+  if (wantsPos && !steps.some((step) => step.type === 'DASHBOARD_OPEN_POS')) {
+    steps.unshift({ type: 'DASHBOARD_OPEN_POS', delayMs: 0 });
+  }
+
+  if (wantsPos && providerKey && !steps.some((step) => step.type === 'POS_SELECT_PROVIDER')) {
+    steps.push({ type: 'POS_SELECT_PROVIDER', providerKey, autoSubmit: true, delayMs: 0 });
   }
 
   if (wantsPos && steps.some((step) => step.type === 'POS_SELECT_PROVIDER') && !steps.some((step) => step.type === 'POS_SUBMIT')) {
-    steps.push({ type: 'POS_SUBMIT', autoSubmit: true, delayMs: 1500 });
+    steps.push({ type: 'POS_SUBMIT', autoSubmit: true, delayMs: 0 });
   }
 
   if (wantsPos && steps.some((step) => step.type === 'POS_SUBMIT') && !steps.some((step) => step.type === 'DASHBOARD_SYNC')) {
-    steps.push({ type: 'DASHBOARD_SYNC', delayMs: 2300 });
+    steps.push({ type: 'DASHBOARD_SYNC', delayMs: 0 });
   }
 
-  if (!onDashboard && steps.some((step) => String(step.type || '').startsWith('DASHBOARD_') || String(step.type || '').startsWith('POS_')) && !steps.some((step) => step.type === 'NAVIGATE')) {
-    steps.unshift({ type: 'NAVIGATE', route: '/dashboard', delayMs: 0 });
-  }
-
-  if (onDashboard) {
-    steps = steps.filter((step, index) => !(step.type === 'NAVIGATE' && step.route === '/dashboard' && index === 0));
-  }
-
+  steps = ensureStepNavigation(steps, runtime);
   return { ...plan, steps };
 }
-
 
 function normalizeChainStep(step = {}) {
   return {
@@ -130,14 +169,14 @@ function normalizeChainPlan(plan = {}) {
 export async function resolveChainVoiceIntent(transcript, runtime = {}) {
   const simpleShortcut = trySimpleLocalShortcut(transcript, runtime);
   if (simpleShortcut) {
-    if (simpleShortcut.type === 'CHAIN') return simpleShortcut;
-    return { type: 'CHAIN', steps: [normalizeChainStep(simpleShortcut)], confidence: 0.95, normalizedText: transcript, resolver: 'local-shortcut' };
+    if (simpleShortcut.type === 'CHAIN') return sanitizePlanAgainstTranscript(simpleShortcut, transcript, runtime);
+    return sanitizePlanAgainstTranscript({ type: 'CHAIN', steps: [normalizeChainStep(simpleShortcut)], confidence: 0.95, normalizedText: transcript, resolver: 'local-shortcut' }, transcript, runtime);
   }
 
   const localPlan = planChainLocally(transcript, runtime);
   if (localPlan?.steps?.length) {
     log.info('Local chain plan created', { stepCount: localPlan.steps.length, source: localPlan.source });
-    return { ...localPlan, resolver: localPlan.source };
+    return { ...sanitizePlanAgainstTranscript(localPlan, transcript, runtime), resolver: localPlan.source };
   }
 
   const aiEnabled = String(import.meta.env.VITE_VOICE_AI_ENABLED || 'true') === 'true';
@@ -151,15 +190,24 @@ export async function resolveChainVoiceIntent(transcript, runtime = {}) {
 
   const recoveryPayload = buildRecoveryPayload({ transcript, cacheSnapshot: runtime.cacheSnapshot || {} });
   log.info('Sending Groq chain recovery request', { pageId: recoveryPayload.page, transcript });
-  const aiPlan = await voiceApiService.parseIntent({
-    mode: 'chain',
-    text: transcript,
-    pageId: recoveryPayload.page,
-    currentRoute: runtime.routePath || '/dashboard',
-    recoveryPayload,
-  });
-  const normalized = normalizeChainPlan(sanitizePlanAgainstTranscript(aiPlan, transcript, runtime));
-  if (!normalized.steps.length) return { type: 'NO_MATCH' };
-  log.info('Groq chain response received', { stepCount: normalized.steps.length, confidence: normalized.confidence });
-  return { ...normalized, resolver: 'ai-chain' };
+
+  try {
+    const aiPlan = await voiceApiService.parseIntent({
+      mode: 'chain',
+      text: transcript,
+      pageId: recoveryPayload.page,
+      currentRoute: runtime.routePath || '/dashboard',
+      recoveryPayload,
+    }, { signal: runtime.abortSignal });
+    const normalized = normalizeChainPlan(sanitizePlanAgainstTranscript(aiPlan, transcript, runtime));
+    if (!normalized.steps.length) return { type: 'NO_MATCH' };
+    log.info('Groq chain response received', { stepCount: normalized.steps.length, confidence: normalized.confidence });
+    return { ...normalized, resolver: 'ai-chain' };
+  } catch (error) {
+    if (error?.code === 'VOICE_ABORTED') {
+      log.warn('Groq chain recovery aborted');
+      throw error;
+    }
+    throw error;
+  }
 }

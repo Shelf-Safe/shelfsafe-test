@@ -2,12 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { useAuth } from '../context/AuthContext';
-import { useVoice } from '../voice/VoiceContext';
 import { VoiceBridge } from '../voice/VoiceBridge';
 
 export const DashboardLayout = ({ children }) => {
   const { user } = useAuth();
-  const { voiceState } = useVoice();
   const displayName = user?.name || user?.fullName || user?.email || 'User';
   const profileImageUrl = user?.profileImageUrl || user?.avatarUrl || user?.photoURL;
   const initial = (displayName?.trim()?.[0] || 'U').toUpperCase();
@@ -26,7 +24,7 @@ export const DashboardLayout = ({ children }) => {
   );
 
   return (
-    <div className={`dashboard-layout voice-shell voice-shell--${voiceState}`}>
+    <div className="dashboard-layout">
       <VoiceBridge />
       <Sidebar mobileHeaderRight={renderProfileLink()} />
       <div className="dashboard-layout-main">

@@ -3,11 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { medicationService } from '../services/medicationService';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const YEARS = Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() + i));
 const RISK_OPTIONS = ['Low', 'Medium', 'High', 'Critical'];
-const SHELF_OPTIONS = ['A1','A2','A3','B1','B2','B3','C1','C2','C3','Refrigerated','Controlled'];
-const CATEGORY_OPTIONS = ['Analgesic','Antibiotic','Antihypertensive','Antihistamine','Antidiabetic','Cardiovascular','Gastrointestinal','Neurological','Oncology','Other'];
+const SHELF_OPTIONS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'Refrigerated', 'Controlled'];
+const CATEGORY_OPTIONS = ['Analgesic', 'Antibiotic', 'Antihypertensive', 'Antihistamine', 'Antidiabetic', 'Cardiovascular', 'Gastrointestinal', 'Neurological', 'Oncology', 'Other'];
 const STATUS_OPTIONS = ['In Stock', 'Low Stock', 'Out of Stock', 'Expired', 'Expiring'];
 
 const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-base md:text-sm text-gray-800 outline-none focus:border-[#00808d] focus:ring-1 focus:ring-[#00808d]';
@@ -100,7 +100,7 @@ export const AddMedicationPage = () => {
 
   useEffect(() => {
     return () => {
-      try { streamRef.current?.getTracks?.().forEach((t) => t.stop()); } catch {}
+      try { streamRef.current?.getTracks?.().forEach((t) => t.stop()); } catch { }
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = null;
@@ -122,7 +122,7 @@ export const AddMedicationPage = () => {
     const playVideo = async () => {
       try {
         await video.play();
-      } catch {}
+      } catch { }
     };
 
     if (video.readyState >= 1) {
@@ -157,7 +157,7 @@ export const AddMedicationPage = () => {
   };
 
   const stopCamera = () => {
-    try { streamRef.current?.getTracks?.().forEach((t) => t.stop()); } catch {}
+    try { streamRef.current?.getTracks?.().forEach((t) => t.stop()); } catch { }
     if (videoRef.current) videoRef.current.srcObject = null;
     streamRef.current = null;
     setCameraActive(false);

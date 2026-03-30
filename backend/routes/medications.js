@@ -244,7 +244,7 @@ router.put('/:id', verifyToken, upload.single('photo'), async (req, res) => {
     const med = await Medication.findOne({ _id: req.params.id, ...scopeFilter(req) });
     if (!med) return res.status(404).json({ success: false, message: 'Medication not found' });
 
-    const fields = ['medicationName','brandName','risk','shelfId','expiryMonth','expiryYear','currentStock','supplierName','supplierContact','status','category','barcodeData','sku','batchLotNumber'];
+    const fields = ['medicationName', 'brandName', 'risk', 'shelfId', 'expiryMonth', 'expiryYear', 'currentStock', 'supplierName', 'supplierContact', 'status', 'category', 'barcodeData', 'sku', 'batchLotNumber'];
     fields.forEach((f) => { if (req.body[f] !== undefined) med[f] = req.body[f]; });
     if (req.body.expiryMonth || req.body.expiryYear) med.expiryDate = buildExpiryDate(med.expiryMonth, med.expiryYear);
     if (req.body.currentStock !== undefined) med.currentStock = parseInt(req.body.currentStock, 10) || 0;

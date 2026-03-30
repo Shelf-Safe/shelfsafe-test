@@ -10,33 +10,16 @@ const Field = ({ label, children }) => (
   </div>
 );
 
-function AccountSection({ profileData, onChange, onSave, onCancel, saving }) {
+function AccountSection({ profileData, onChange, avatarUrl }) {
   return (
-    <div className="ps-account-wrap">
-      <div className="ps-account-header mb-6 flex items-start justify-between gap-4">
-        <h2 className="text-[18px] font-bold text-[#1e1e1e]">Profile Details</h2>
-
-        <div className="ps-account-actions flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md border border-[#00808d] bg-white px-3 py-2 text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-md bg-[#00808d] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#006d77]"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-
+    <div className="ps-account-wrap max-w-8xl">
       <div className="ps-account-profile mb-6 flex items-center gap-4">
-        <div className="ps-account-avatar flex h-20 w-20 items-center justify-center rounded-full bg-[#d9d9d9] text-2xl font-bold text-[#1e1e1e]">
-          {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+        <div className="ps-account-avatar flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#d9d9d9] text-2xl font-bold text-[#1e1e1e]">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+          ) : (
+            profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'
+          )}
         </div>
 
         <div>
@@ -73,7 +56,7 @@ function AccountSection({ profileData, onChange, onSave, onCancel, saving }) {
       </div>
 
       <div className="mt-8">
-        <p className="mb-2 text-sm font-bold text-[#1e1e1e]">Preferences</p>
+        <p className="mb-2 text-[16px] font-bold text-[#1e1e1e]">Preferences</p>
         <ul className="flex flex-col gap-1 text-sm text-[#4f5250]">
           <li>• English (Canada)</li>
           <li>• PST (UTC-08:00)</li>

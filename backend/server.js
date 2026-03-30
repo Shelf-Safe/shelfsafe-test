@@ -11,6 +11,12 @@ import posRoutes from './routes/pos.js';
 import reportRoutes from './routes/reports.js';
 import voiceRoutes from './routes/voice.js';
 
+import multer from 'multer';
+import * as xlsx from 'xlsx';
+import Medication from './models/Medication.js';
+
+const upload = multer({ storage: multer.memoryStorage() });
+
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +33,8 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch((err) => console.log('MongoDB connection error:', err));
+
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/medications', medicationRoutes);
@@ -60,7 +68,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5003;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

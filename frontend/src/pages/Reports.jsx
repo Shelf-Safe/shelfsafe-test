@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { subscribeVoiceAppEvent } from '../voice/eventBus';
 import { API_ORIGIN } from '../config/api';
 
+// ─── UserChip ─────────────────────────────────────────────────────────────────
 function UserChip({ user }) {
   const navigate = useNavigate();
   const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'S';
@@ -18,6 +20,7 @@ function UserChip({ user }) {
   );
 }
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
 const IconClock = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00808d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
@@ -72,6 +75,7 @@ const IconX = () => (
   </svg>
 );
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
   'Compliance & Safety Reports',
   'Stock Reports',
@@ -111,80 +115,79 @@ const DEFAULT_REPORT_SUBTYPE = {
   'Usage & Trends': 'waste_trend_summary',
 };
 
+function normalizeVoiceText(rawValue = '') {
+  return ` ${String(rawValue || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()} `;
+}
+
+function hasVoicePhrase(normalized, phrase) {
+  const p = String(phrase || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return normalized.includes(` ${p} `);
+}
+
+function parseVoiceReportEmailRequest(rawValue = '') {
+  const normalized = normalizeVoiceText(rawValue);
+  let reportType = 'Expiry Reports';
+  if (hasVoicePhrase(normalized, 'stock reports') || hasVoicePhrase(normalized, 'stock report') || hasVoicePhrase(normalized, 'inventory report') || hasVoicePhrase(normalized, 'inventory reports') || hasVoicePhrase(normalized, 'stock')) {
+    reportType = 'Stock Reports';
+  } else if (hasVoicePhrase(normalized, 'compliance') || hasVoicePhrase(normalized, 'safety')) {
+    reportType = 'Compliance & Safety Reports';
+  } else if (hasVoicePhrase(normalized, 'usage') || hasVoicePhrase(normalized, 'trends')) {
+    reportType = 'Usage & Trends';
+  } else if (hasVoicePhrase(normalized, 'expiry') || hasVoicePhrase(normalized, 'expiration') || hasVoicePhrase(normalized, 'expired')) {
+    reportType = 'Expiry Reports';
+  }
+
+  let format = 'PDF';
+  if (hasVoicePhrase(normalized, 'csv')) format = 'CSV';
+  if (hasVoicePhrase(normalized, 'pdf')) format = 'PDF';
+
+  return { reportType, format };
+}
+
 const DATE_FILTERS = ['Last 30 days', 'Last 60 days', 'Last 90 days', 'Last 6 months', 'Last year'];
 const FORMAT_FILTERS = ['All Formats', 'PDF', 'CSV'];
 
 const API_BASE = API_ORIGIN;
 
-const getClientOrigin = () => {
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return 'http://localhost:5173';
-};
-
 const normalizeReportUrl = (fileUrl) => {
   if (!fileUrl) return '';
-  if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
-  const base = API_ORIGIN || getClientOrigin();
-  try {
-    return new URL(fileUrl, base.endsWith('/') ? base : `${base}/`).toString();
-  } catch {
-    return `${base}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
-  }
+  return /^https?:\/\//i.test(fileUrl) ? fileUrl : `${API_ORIGIN}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
 };
 
 const openReportUrl = (fileUrl) => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
-  if (!normalizedUrl || typeof window === 'undefined') return;
+  if (!normalizedUrl) return;
   window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
-};
-
-const copyTextFallback = async (value) => {
-  if (typeof document === 'undefined') return false;
-  const textarea = document.createElement('textarea');
-  textarea.value = value;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {}
-  document.body.removeChild(textarea);
-  return ok;
 };
 
 const copyReportUrl = async (fileUrl) => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
-  if (!normalizedUrl) return false;
+  if (!normalizedUrl) return;
   try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(normalizedUrl);
-      return true;
-    }
-  } catch {}
-  return copyTextFallback(normalizedUrl);
+    await navigator.clipboard.writeText(normalizedUrl);
+  } catch (_) {}
 };
 
 const buildEmailShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
   const subject = encodeURIComponent(`${reportTitle} from ShelfSafe`);
-  const body = encodeURIComponent(`Hi,
-
-Here is the report link:
-${normalizedUrl}`);
+  const body = encodeURIComponent(`Hi,%0D%0A%0D%0AHere is the report link:%0D%0A${normalizedUrl}`);
   return `mailto:?subject=${subject}&body=${body}`;
 };
 
 const buildWhatsAppShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
   const normalizedUrl = normalizeReportUrl(fileUrl);
   return `https://wa.me/?text=${encodeURIComponent(`${reportTitle} - ${normalizedUrl}`)}`;
-};
-
-const buildTwitterShareUrl = (fileUrl, reportTitle = 'ShelfSafe report') => {
-  const normalizedUrl = normalizeReportUrl(fileUrl);
-  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${reportTitle} ${normalizedUrl}`)}`;
 };
 
 const INFO_CARDS = [
@@ -226,6 +229,7 @@ const INFO_CARDS = [
   },
 ];
 
+// ─── Custom dropdown ──────────────────────────────────────────────────────────
 function Dropdown({ value, onChange, options, placeholder = 'All', className = '' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -285,6 +289,7 @@ function Dropdown({ value, onChange, options, placeholder = 'All', className = '
   );
 }
 
+// ─── Generate Reports Panel ─────────────────���─────────────────────────────────
 function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
   const [reportType, setReportType] = useState(initialType);
   const [reportSubType, setReportSubType] = useState(initialType ? DEFAULT_REPORT_SUBTYPE[initialType] || '' : '');
@@ -402,7 +407,6 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200">
           <button
             type="button"
@@ -428,166 +432,119 @@ function GenerateReportPanel({ onClose, onGenerate, initialType = '' }) {
 
 function ShareMenu({ row }) {
   const [open, setOpen] = useState(false);
-  const [menuStyle, setMenuStyle] = useState({ top: 0, left: 0, width: 280 });
-  const [copiedMessage, setCopiedMessage] = useState('');
-  const buttonRef = useRef(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);
   const menuRef = useRef(null);
-  const timeoutRef = useRef(null);
-  const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
-  const normalizedUrl = normalizeReportUrl(row?.fileUrl);
-
-  const closeMenu = () => setOpen(false);
-  const openExternal = (url) => {
-    if (!url || typeof window === 'undefined') return;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const showCopiedFeedback = (message) => {
-    setCopiedMessage(message);
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => setCopiedMessage(''), 1800);
-  };
-
-  const updatePosition = () => {
-    if (!buttonRef.current || typeof window === 'undefined') return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const preferredWidth = viewportWidth < 640 ? Math.min(260, viewportWidth - 24) : 280;
-    const left = Math.min(
-      Math.max(12, rect.right - preferredWidth),
-      viewportWidth - preferredWidth - 12,
-    );
-    const top = Math.min(rect.bottom + 10, window.innerHeight - 280);
-    setMenuStyle({ top, left, width: preferredWidth });
-  };
 
   useEffect(() => {
-    if (!open) return undefined;
-    updatePosition();
-    const handleWindowChange = () => updatePosition();
-    const handleOutside = (event) => {
-      if (buttonRef.current?.contains(event.target)) return;
-      if (menuRef.current?.contains(event.target)) return;
-      closeMenu();
+    const closeOnOutside = (e) => {
+      // bug fixed: share options click was not working after portal change
+      if (
+        ref.current &&
+        !ref.current.contains(e.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
     };
-    window.addEventListener('resize', handleWindowChange);
-    window.addEventListener('scroll', handleWindowChange, true);
-    document.addEventListener('mousedown', handleOutside);
+
+    const updateMenuPosition = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      // bug fixed: share popup gets clipped in reports table
+      setMenuPosition({
+        top: rect.top - 8,
+        left: rect.right - 192,
+      });
+    };
+
+    document.addEventListener('mousedown', closeOnOutside);
+    if (open) {
+      updateMenuPosition();
+      window.addEventListener('scroll', updateMenuPosition, true);
+      window.addEventListener('resize', updateMenuPosition);
+    }
+
     return () => {
-      window.removeEventListener('resize', handleWindowChange);
-      window.removeEventListener('scroll', handleWindowChange, true);
-      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('mousedown', closeOnOutside);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      window.removeEventListener('resize', updateMenuPosition);
     };
   }, [open]);
 
-  useEffect(() => () => {
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-  }, []);
+  const shareTitle = `${row?.type || 'ShelfSafe report'} (${row?.format || 'PDF'})`;
+  const normalizedUrl = normalizeReportUrl(row?.fileUrl);
 
   return (
-    <>
-      <div className="relative inline-flex">
-        <button
-          ref={buttonRef}
-          type="button"
-          className="transition-opacity hover:opacity-70"
-          title="Share"
-          aria-label="Share report"
-          onClick={() => setOpen((value) => !value)}
-        >
-          <IconShare />
-        </button>
-      </div>
+    <div ref={ref} className="relative">
+      <button
+        className="transition-opacity hover:opacity-70"
+        title="Share"
+        aria-label="Share report"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <IconShare />
+      </button>
 
-      {open ? (
+      {open ? createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[101] overflow-hidden bg-white border border-gray-200 shadow-xl rounded-2xl"
-          style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+          className="fixed z-[9999] w-48 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg"
+          style={{ top: menuPosition.top, left: menuPosition.left, transform: 'translateY(-100%)' }}
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Share report</h3>
-              <p className="mt-0.5 text-xs text-gray-500">Choose how you want to share it.</p>
-            </div>
-            <button type="button" onClick={closeMenu} className="p-1 rounded-lg hover:bg-gray-100" aria-label="Close share menu">
-              <IconX />
-            </button>
-          </div>
-
-          <div className="p-2 space-y-1.5">
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={() => {
+              window.open(buildEmailShareUrl(normalizedUrl, shareTitle), '_blank', 'noopener,noreferrer');
+              setOpen(false);
+            }}
+          >
+            Share via Gmail / Email
+          </button>
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={() => {
+              window.open(buildWhatsAppShareUrl(normalizedUrl, shareTitle), '_blank', 'noopener,noreferrer');
+              setOpen(false);
+            }}
+          >
+            Share via WhatsApp
+          </button>
+          <button
+            type="button"
+            className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+            onClick={async () => {
+              await copyReportUrl(normalizedUrl);
+              setOpen(false);
+            }}
+          >
+            Copy share link
+          </button>
+          {typeof navigator !== 'undefined' && navigator.share ? (
             <button
               type="button"
-              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
-              onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.share && normalizedUrl) {
-                  navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl }).catch(() => {});
-                }
-                closeMenu();
+              className="w-full px-4 py-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-50"
+              onClick={async () => {
+                try {
+                  await navigator.share({ title: shareTitle, text: shareTitle, url: normalizedUrl });
+                } catch (_) {}
+                setOpen(false);
               }}
-              disabled={!(typeof navigator !== 'undefined' && navigator.share && normalizedUrl)}
             >
               More share options
             </button>
-            <button
-              type="button"
-              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
-              onClick={() => {
-                openExternal(buildEmailShareUrl(normalizedUrl, shareTitle));
-                closeMenu();
-              }}
-              disabled={!normalizedUrl}
-            >
-              Share via Gmail / Email
-            </button>
-            <button
-              type="button"
-              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
-              onClick={() => {
-                openExternal(buildWhatsAppShareUrl(normalizedUrl, shareTitle));
-                closeMenu();
-              }}
-              disabled={!normalizedUrl}
-            >
-              Share via WhatsApp
-            </button>
-            <button
-              type="button"
-              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
-              onClick={() => {
-                openExternal(buildTwitterShareUrl(normalizedUrl, shareTitle));
-                closeMenu();
-              }}
-              disabled={!normalizedUrl}
-            >
-              Share via X / Twitter
-            </button>
-            <button
-              type="button"
-              className="w-full px-3 py-2.5 text-sm text-left text-gray-700 rounded-xl hover:bg-gray-50 disabled:text-gray-300"
-              onClick={async () => {
-                const copied = await copyReportUrl(normalizedUrl);
-                if (copied) showCopiedFeedback('Link copied');
-              }}
-              disabled={!normalizedUrl}
-            >
-              Copy share link
-            </button>
-          </div>
-
-          <div className="min-h-[22px] px-4 pb-3">
-            {copiedMessage ? (
-              <div className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded-full">
-                {copiedMessage}
-              </div>
-            ) : null}
-          </div>
-        </div>
+          ) : null}
+        </div>,
+        document.body
       ) : null}
-    </>
+    </div>
   );
 }
 
+// ─── Main Reports Page ────────────────────────────────────────────────────────
 export const Reports = () => {
   const { user } = useAuth();
   const [panelOpen, setPanelOpen]         = useState(false);
@@ -601,6 +558,7 @@ export const Reports = () => {
   const [createdByOptions, setCreatedByOptions] = useState(['All']);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const openPanel = (type = '') => {
     setPanelInitialType(type);
@@ -612,10 +570,46 @@ export const Reports = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
+  const buildFiltersPayload = ({ type, subType }) => ({
+    dateFilter: filterDate,
+    search,
+    expiryWindowDays: subType === 'expiring_soon' ? 30 : undefined,
+    trendWindowDays: type === 'Usage & Trends' ? 365 : undefined,
+  });
+
+  const emailReportToMe = async ({ type, subType, format }) => {
+    setLoading(true);
+    setError('');
+    setSuccessMessage('');
+    try {
+      const res = await fetch(`${API_BASE}/api/reports/email-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({
+          reportType: type,
+          reportSubType: subType,
+          format,
+          filters: buildFiltersPayload({ type, subType }),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Failed to email report');
+      await fetchReports();
+      setSuccessMessage(json.message || 'Report emailed successfully.');
+      return json;
+    } catch (e) {
+      setError(e.message || 'Failed to email report');
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchReports = async () => {
     try {
       setLoading(true);
       setError('');
+      setSuccessMessage('');
       const params = new URLSearchParams();
       if (search) params.set('q', search);
       if (filterDate) params.set('dateFilter', filterDate);
@@ -644,10 +638,28 @@ export const Reports = () => {
 
   useEffect(() => {
     fetchReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, filterDate, filterType, filterFormat, filterCreatedBy]);
 
+  const handleVoiceEmailRequest = async (rawValue = '') => {
+    const { reportType, format } = parseVoiceReportEmailRequest(rawValue);
+    const reportSubType = DEFAULT_REPORT_SUBTYPE[reportType] || '';
+    openPanel(reportType);
+    await emailReportToMe({
+      type: reportType,
+      subType: reportSubType,
+      format,
+    });
+  };
+
+  const emailDefaultReportToMe = async () => {
+    const selectedType = filterType || 'Expiry Reports';
+    const selectedSubType = DEFAULT_REPORT_SUBTYPE[selectedType] || '';
+    return emailReportToMe({ type: selectedType, subType: selectedSubType, format: 'PDF' });
+  };
+
   const reportsVoiceRef = useRef({});
-  reportsVoiceRef.current = { openPanel, setSearch };
+  reportsVoiceRef.current = { openPanel, setSearch, handleVoiceEmailRequest, emailDefaultReportToMe };
 
   useEffect(() => {
     return subscribeVoiceAppEvent((detail) => {
@@ -659,6 +671,12 @@ export const Reports = () => {
         case 'REPORTS_SEARCH':
           if (detail.value) v.setSearch(detail.value);
           break;
+        case 'REPORTS_EMAIL_REPORT':
+          v.handleVoiceEmailRequest(detail.value || '');
+          break;
+        case 'REPORTS_EMAIL_PDF':
+          v.emailDefaultReportToMe();
+          break;
         default:
           break;
       }
@@ -669,6 +687,7 @@ export const Reports = () => {
     try {
       setLoading(true);
       setError('');
+      setSuccessMessage('');
       const res = await fetch(`${API_BASE}/api/reports/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
@@ -676,12 +695,7 @@ export const Reports = () => {
           reportType: type,
           reportSubType: subType,
           format,
-          filters: {
-            dateFilter: filterDate,
-            search,
-            expiryWindowDays: subType === 'expiring_soon' ? 30 : undefined,
-            trendWindowDays: type === 'Usage & Trends' ? 365 : undefined,
-          },
+          filters: buildFiltersPayload({ type, subType }),
         }),
       });
       const json = await res.json();
@@ -701,7 +715,8 @@ export const Reports = () => {
     <DashboardLayout pageTitle="Reports" headerRight={<UserChip user={user} />}>
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', margin: '0 0 4px' }}>Reports</h1>
+          {/* bug fixed: reports page typography too small */}
+          <h1 style={{ fontSize: '36px', fontWeight: '700', lineHeight: 1.15, color: '#111827', margin: '0 0 6px' }}>Reports</h1>
           <p className="text-sm leading-relaxed text-gray-500">
             Generate and review reports to enhance compliance, facilitate restocking, and minimize waste.
           </p>
@@ -714,7 +729,10 @@ export const Reports = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 mt-5 mb-8 md:grid-cols-2">
+{/* bug name fixed: side gaps for report cards only */}
+<div className="mt-5 mb-8 px-10 lg:px-16">
+  <div className="max-w-[900px] mx-auto">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {INFO_CARDS.map(({ title, Icon, bullets }) => (
           <button
             key={title}
@@ -736,6 +754,8 @@ export const Reports = () => {
             </ul>
           </button>
         ))}
+              </div>
+      </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -786,6 +806,9 @@ export const Reports = () => {
 
       {error ? (
         <div className="mb-3 text-sm text-red-600">{error}</div>
+      ) : null}
+      {!error && successMessage ? (
+        <div className="mb-3 text-sm text-[#00808d]">{successMessage}</div>
       ) : null}
 
       <div className="overflow-hidden bg-white border border-gray-200 rounded-xl">

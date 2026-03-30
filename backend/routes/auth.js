@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import { sendEmail } from '../utils/sendEmail.js';
 import User from '../models/User.js';
 import { generateToken, verifyToken } from '../middleware/auth.js';
 
@@ -50,7 +50,6 @@ router.post('/register', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        orgId: user.orgId,
       },
     });
   } catch (error) {
@@ -100,27 +99,18 @@ router.post('/login', async (req, res) => {
 
       await user.save({ validateBeforeSave: false });
 
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      await sendEmail({
         to: user.email,
         subject: 'Your ShelfSafe verification code',
         html: `
-    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
-      <h2 style="color:#00808d;">Two-Factor Authentication</h2>
-      <p>Hi ${user.name},</p>
-      <p>Your ShelfSafe verification code is:</p>
-      <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${otp}</p>
-      <p>This code will expire in 10 minutes.</p>
-    </div>
-  `,
+        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+          <h2 style="color:#00808d;">Two-Factor Authentication</h2>
+          <p>Hi ${user.name},</p>
+          <p>Your ShelfSafe verification code is:</p>
+          <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${otp}</p>
+         <p>This code will expire in 10 minutes.</p>
+        </div>
+        `,
       });
 
       return res.status(200).json({
@@ -143,7 +133,6 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        orgId: user.orgId,
       },
     });
 
@@ -203,7 +192,6 @@ router.post('/verify-2fa', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        orgId: user.orgId,
       },
     });
   } catch (error) {
@@ -235,7 +223,6 @@ router.get('/me', verifyToken, async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        orgId: user.orgId,
       },
     });
   } catch (error) {
@@ -271,40 +258,29 @@ router.post('/forgot-password', async (req, res) => {
     const clientOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
     const resetUrl = `${clientOrigin}/reset-password/${rawToken}`;
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    await transporter.sendMail({
-      from: `"ShelfSafe" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    await sendEmail({
       to: user.email,
       subject: 'Password Reset Request — ShelfSafe',
       html: `
-        <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
-          <h2 style="color:#00808d;">Reset Your Password</h2>
-          <p>Hi ${user.name},</p>
-          <p>We received a request to reset the password for your ShelfSafe account.
-             Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.</p>
-          <a href="${resetUrl}"
-             style="display:inline-block;margin:24px 0;padding:12px 28px;background:#00808d;color:#fff;
-                    border-radius:6px;text-decoration:none;font-weight:600;">
-            Reset Password
-          </a>
-          <p>If the button doesn't work, copy and paste this URL into your browser:</p>
-          <p style="word-break:break-all;color:#555;">${resetUrl}</p>
-          <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb;" />
-          <p style="color:#9ca3af;font-size:13px;">
-            If you did not request a password reset, you can safely ignore this email.
-            Your password will not change.
-          </p>
-        </div>
-      `,
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;">
+      <h2 style="color:#00808d;">Reset Your Password</h2>
+      <p>Hi ${user.name},</p>
+      <p>We received a request to reset the password for your ShelfSafe account.
+         Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.</p>
+      <a href="${resetUrl}"
+         style="display:inline-block;margin:24px 0;padding:12px 28px;background:#00808d;color:#fff;
+                border-radius:6px;text-decoration:none;font-weight:600;">
+        Reset Password
+      </a>
+      <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+      <p style="word-break:break-all;color:#555;">${resetUrl}</p>
+      <hr style="margin:32px 0;border:none;border-top:1px solid #e5e7eb;" />
+      <p style="color:#9ca3af;font-size:13px;">
+        If you did not request a password reset, you can safely ignore this email.
+        Your password will not change.
+      </p>
+    </div>
+  `,
     });
 
     res.status(200).json({

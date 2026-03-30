@@ -14,7 +14,7 @@ function createTransporter() {
   });
 }
 
-export async function sendEmail({ to, subject, html }) {
+export async function sendEmail({ to, subject, html, text, attachments = [] }) {
   const transporter = createTransporter();
 
   return transporter.sendMail({
@@ -22,5 +22,7 @@ export async function sendEmail({ to, subject, html }) {
     to,
     subject,
     html,
+    text,
+    attachments,
   });
 }

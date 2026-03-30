@@ -75,11 +75,15 @@ export async function resolveSimpleVoiceIntent(transcript, runtime = {}) {
       pageId,
       currentRoute: runtime.routePath || '/dashboard',
       recoveryPayload,
-    });
+    }, { signal: runtime.abortSignal });
     const resolved = { ...normalizeAiAction(aiAction), resolver: 'ai-simple' };
     log.info('Groq simple response received', { type: resolved.type, value: resolved.value, confidence: resolved.confidence, normalizedText: resolved.normalizedText });
     return resolved;
   } catch (error) {
+    if (error?.code === 'VOICE_ABORTED') {
+      log.warn('Simple AI resolver aborted');
+      throw error;
+    }
     log.warn('Simple AI resolver failed, falling back to local only.', error);
     return local;
   }

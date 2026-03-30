@@ -219,7 +219,7 @@ function resolveSingleCommand(rawText, runtime = {}) {
   const normalizedVoiceText = normalizeForVoice(rawText);
   if (!text) return { type: 'NO_MATCH' };
 
-  if (runtime.activeContext === 'pos-modal') {
+  if (String(runtime.activeContext || '').startsWith('pos-modal')) {
     const posMatch = parsePosContext(text);
     return posMatch || { type: 'NO_MATCH' };
   }
@@ -289,7 +289,7 @@ export function resolveVoiceCommand(rawText, runtime = {}) {
 
   if (!text) return { type: 'NO_MATCH' };
 
-  if (runtime.activeContext === 'pos-modal') {
+  if (String(runtime.activeContext || '').startsWith('pos-modal')) {
     return resolveSingleCommand(normalizedVoiceText, runtime);
   }
 

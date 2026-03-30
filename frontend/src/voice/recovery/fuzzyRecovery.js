@@ -95,6 +95,36 @@ function actionTypeFor(page, intent) {
   return map[page]?.[intent] || '';
 }
 
+function scoreCandidateSet(transcript = '', candidates = [], { threshold = 0.5 } = {}) {
+  const normalized = normalize(transcript);
+  const tokens = tokenize(normalized);
+  const windows = phraseWindows(tokens, 3);
+  const uniqueCandidates = Array.from(new Set((candidates || []).filter(Boolean)));
+  const scored = [];
+  for (const candidate of uniqueCandidates) {
+    const candidateNorm = normalize(candidate);
+    const candidateTokens = tokenize(candidateNorm);
+    const candidateCore = candidateTokens[0] || candidateNorm;
+    let bestScore = Math.max(similarity(normalized, candidateNorm), similarity(normalized, candidateCore));
+    let bestAgainst = normalized;
+    for (const windowPhrase of windows) {
+      const score = Math.max(
+        similarity(windowPhrase, candidateNorm),
+        similarity(windowPhrase, candidateCore),
+        soundex(windowPhrase) && soundex(candidateCore) && soundex(windowPhrase) === soundex(candidateCore) ? 0.9 : 0,
+      );
+      if (score > bestScore) {
+        bestScore = score;
+        bestAgainst = windowPhrase;
+      }
+    }
+    if (bestScore > threshold) {
+      scored.push({ name: candidate, score: Number(bestScore.toFixed(3)), matchedFrom: bestAgainst });
+    }
+  }
+  return scored.sort((a, b) => b.score - a.score).slice(0, 6);
+}
+
 function getActionHints(transcript = '', allowedActions = []) {
   const normalized = normalize(transcript);
   const windows = phraseWindows(tokenize(normalized), 3);
@@ -120,53 +150,27 @@ function getActionHints(transcript = '', allowedActions = []) {
   return hints.sort((a, b) => b.score - a.score).slice(0, 4);
 }
 
-function getMedicationHints(transcript = '', candidates = []) {
-  const normalized = normalize(transcript);
-  const tokens = tokenize(normalized);
-  const windows = phraseWindows(tokens, 3);
-  const uniqueCandidates = Array.from(new Set((candidates || []).filter(Boolean)));
-  const scored = [];
-  for (const candidate of uniqueCandidates) {
-    const candidateNorm = normalize(candidate);
-    const candidateTokens = tokenize(candidateNorm);
-    const candidateCore = candidateTokens[0] || candidateNorm;
-    let bestScore = Math.max(similarity(normalized, candidateNorm), similarity(normalized, candidateCore));
-    let bestAgainst = normalized;
-    for (const windowPhrase of windows) {
-      const score = Math.max(
-        similarity(windowPhrase, candidateNorm),
-        similarity(windowPhrase, candidateCore),
-        soundex(windowPhrase) && soundex(candidateCore) && soundex(windowPhrase) === soundex(candidateCore) ? 0.9 : 0,
-      );
-      if (score > bestScore) {
-        bestScore = score;
-        bestAgainst = windowPhrase;
-      }
-    }
-    if (bestScore > 0.5) {
-      scored.push({ name: candidate, score: Number(bestScore.toFixed(3)), matchedFrom: bestAgainst });
-    }
-  }
-  return scored.sort((a, b) => b.score - a.score).slice(0, 6);
-}
-
 export function buildFuzzyRecoveryHints({ transcript = '', recoveryPayload = {} } = {}) {
   const actionHints = getActionHints(transcript, recoveryPayload.allowedActions || []);
-  const candidates = [
+  const medicationHints = scoreCandidateSet(transcript, [
     ...(recoveryPayload.candidateMedications || []),
     ...(recoveryPayload.knownMedicationNames || []),
-    ...(recoveryPayload.posProviders || []),
-  ];
-  const entityHints = getMedicationHints(transcript, candidates);
+  ], { threshold: 0.54 });
+  const providerHints = scoreCandidateSet(transcript, recoveryPayload.posProviders || [], { threshold: 0.66 });
   const bestAction = actionHints[0] || null;
-  const bestEntity = entityHints[0] || null;
+  const bestMedication = medicationHints[0] || null;
+  const bestProvider = providerHints[0] || null;
+  const entityForGuess = bestAction?.intent === 'connect_pos' ? bestProvider : bestMedication;
+
   return {
     actionHints,
-    entityHints,
+    medicationHints,
+    providerHints,
     bestAction,
-    bestEntity,
-    correctedTranscriptGuess: bestAction && bestEntity
-      ? `${String(bestAction.intent || '').replace('_medication', '').replace('_', ' ')} ${bestEntity.name}`
+    bestMedication,
+    bestProvider,
+    correctedTranscriptGuess: bestAction && entityForGuess
+      ? `${String(bestAction.intent || '').replace('_medication', '').replace('_', ' ')} ${entityForGuess.name}`
       : '',
   };
 }
@@ -175,17 +179,16 @@ export function tryDirectFuzzyResolution({ transcript = '', recoveryPayload = {}
   const hints = buildFuzzyRecoveryHints({ transcript, recoveryPayload });
   const page = recoveryPayload.page || 'dashboard';
   const action = hints.bestAction;
-  const entity = hints.bestEntity;
 
   if (!action) return null;
 
-  if (['sync_inventory', 'connect_pos'].includes(action.intent) && action.score >= 0.82) {
+  if (['sync_inventory'].includes(action.intent) && action.score >= 0.84) {
     const type = actionTypeFor(page, action.intent);
     if (!type) return null;
     return {
       type,
       route: '',
-      value: entity?.name && action.intent === 'connect_pos' ? entity.name : '',
+      value: '',
       sortDirection: '',
       priorityValue: '',
       confidence: Number(action.score.toFixed(3)),
@@ -196,18 +199,35 @@ export function tryDirectFuzzyResolution({ transcript = '', recoveryPayload = {}
     };
   }
 
-  if (entity && action.score >= 0.72 && entity.score >= 0.78) {
+  if (action.intent === 'connect_pos' && hints.bestProvider && action.score >= 0.76 && hints.bestProvider.score >= 0.82) {
     const type = actionTypeFor(page, action.intent);
     if (!type) return null;
     return {
       type,
       route: '',
-      value: entity.name,
+      value: hints.bestProvider.name,
       sortDirection: '',
       priorityValue: '',
-      confidence: Number(((action.score + entity.score) / 2).toFixed(3)),
+      confidence: Number(((action.score + hints.bestProvider.score) / 2).toFixed(3)),
       spokenResponse: '',
-      normalizedText: `${action.intent.replace('_medication', '').replace('_', ' ')} ${entity.name}`,
+      normalizedText: `connect pos ${hints.bestProvider.name}`,
+      resolver: 'fuzzy',
+      fuzzyHints: hints,
+    };
+  }
+
+  if (hints.bestMedication && action.score >= 0.72 && hints.bestMedication.score >= 0.78) {
+    const type = actionTypeFor(page, action.intent);
+    if (!type) return null;
+    return {
+      type,
+      route: '',
+      value: hints.bestMedication.name,
+      sortDirection: '',
+      priorityValue: '',
+      confidence: Number(((action.score + hints.bestMedication.score) / 2).toFixed(3)),
+      spokenResponse: '',
+      normalizedText: `${action.intent.replace('_medication', '').replace('_', ' ')} ${hints.bestMedication.name}`,
       resolver: 'fuzzy',
       fuzzyHints: hints,
     };

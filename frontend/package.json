@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "node ./node_modules/vite/dist/node/cli.js",
-    "build": "node ./node_modules/vite/dist/node/cli.js build",
-    "preview": "node ./node_modules/vite/dist/node/cli.js preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "axios": "^1.5.0",
@@ -20,6 +20,6 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.10",
-    "vite": "^8.0.1"
+    "vite": "^7.3.1"
   }
 }

@@ -64,23 +64,29 @@ export function PosConnectionModal({ open, onClose, onConnected }) {
   const latestConnectRef = useRef(null);
   const submitButtonRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) {
-      setActiveContext(null);
-      return;
-    }
-    setActiveContext('pos-modal');
-    return () => setActiveContext(null);
-  }, [open, setActiveContext]);
-
   const selectedProvider = useMemo(
     () => providers.find((p) => p.key === selected?.key) || selected,
     [providers, selected]
   );
 
+
+  useEffect(() => {
+    if (!open) {
+      setActiveContext(null);
+      return;
+    }
+    if (loading) {
+      setActiveContext('pos-modal:submitting');
+    } else if (step === 'login') {
+      setActiveContext('pos-modal:credentials');
+    } else {
+      setActiveContext('pos-modal:providers');
+    }
+    return () => setActiveContext(null);
+  }, [open, step, loading, setActiveContext]);
+
   useEffect(() => {
     if (!open) return undefined;
-
     return subscribeVoiceAppEvent((detail) => {
       if (detail.type === 'POS_SELECT_PROVIDER') {
         const provider = providers.find((item) => item.key === detail.providerKey);
@@ -90,21 +96,11 @@ export function PosConnectionModal({ open, onClose, onConnected }) {
           setShouldAutoSubmit(Boolean(detail.autoSubmit));
         }
       }
-
-      if (detail.type === 'POS_SET_EMAIL') {
-        setEmail(detail.value || '');
-      }
-
-      if (detail.type === 'POS_SET_PASSWORD') {
-        setPassword(detail.value || '');
-      }
-
-      if (detail.type === 'POS_CLOSE') {
-        onClose?.();
-      }
-
+      if (detail.type === 'POS_SET_EMAIL') setEmail(detail.value || '');
+      if (detail.type === 'POS_SET_PASSWORD') setPassword(detail.value || '');
+      if (detail.type === 'POS_CLOSE') onClose?.();
       if (detail.type === 'POS_SUBMIT' && step === 'login' && selectedProvider && !loading) {
-        handleConnect({ preventDefault() {} });
+        latestConnectRef.current?.({ preventDefault() {} });
       }
     });
   }, [open, providers, step, selectedProvider, loading, onClose]);
@@ -162,11 +158,8 @@ export function PosConnectionModal({ open, onClose, onConnected }) {
     if (!open || !shouldAutoSubmit || step !== 'login' || !selectedProvider || loading) return;
     const timer = window.setTimeout(() => {
       const button = submitButtonRef.current;
-      if (button && typeof button.click === 'function') {
-        button.click();
-      } else {
-        latestConnectRef.current?.({ preventDefault() {} });
-      }
+      if (button && typeof button.click === 'function') button.click();
+      else latestConnectRef.current?.({ preventDefault() {} });
       setShouldAutoSubmit(false);
     }, 350);
     return () => window.clearTimeout(timer);
@@ -245,13 +238,7 @@ export function PosConnectionModal({ open, onClose, onConnected }) {
             </div>
             <div className="pos-modal-actions">
               <button type="button" onClick={() => setStep('providers')} className="pos-modal-cancel-btn">Cancel</button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="pos-modal-sync-btn"
-                ref={submitButtonRef}
-                data-voice-action="pos-sync-inventory"
-              >
+              <button type="submit" disabled={loading} className="pos-modal-sync-btn" ref={submitButtonRef} data-voice-action="pos-sync-inventory">
                 {loading ? 'Syncing...' : 'Sync Inventory'}
               </button>
             </div>

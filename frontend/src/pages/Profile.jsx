@@ -146,7 +146,6 @@ export const Profile = () => {
     setError('');
   };
 
-
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -175,7 +174,6 @@ export const Profile = () => {
 
     const date = new Date(timestamp);
     const now = new Date();
-
     const isToday = date.toDateString() === now.toDateString();
 
     if (isToday) {
@@ -203,7 +201,7 @@ export const Profile = () => {
 
   return (
     <DashboardLayout>
-      <div className="w-full">
+      <div className="w-full max-w-6xl ">
         {loading ? (
           <div className="rounded-xl border border-line bg-white p-6">
             <p>Loading profile...</p>
@@ -214,7 +212,7 @@ export const Profile = () => {
           </div>
         ) : (
           <>
-            <div className="mb-5 flex items-start justify-between">
+            <div className="mb-5 flex items-start justify-between lg:pr-2">
               <div>
                 <h1 className="flex items-center gap-2 text-3xl font-bold text-[#1e1e1e]">
                   Profile
@@ -233,7 +231,7 @@ export const Profile = () => {
                 </p>
               </div>
 
-              <div className="mt-1 flex items-center gap-3">
+              <div className="mt-1 flex items-center gap-3 ">
                 <button
                   onClick={handleLogout}
                   className="rounded-lg border border-[#d2d2d2] bg-white px-5 py-2 text-sm font-semibold text-[#1e1e1e] transition-colors hover:bg-[#f5f5f5]"
@@ -251,8 +249,8 @@ export const Profile = () => {
               </div>
             </div>
 
-            <div className="flex flex-col gap-5 lg:flex-row">
-              <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-[#e6e6e6] bg-white">
+            <div className="flex flex-col gap-5 lg:flex-row lg:pr-2 max-w-5.5xl">
+              <div className="min-w-0 lg:w-[58%] overflow-hidden rounded-xl border border-[#e6e6e6] bg-white">
                 <div className="flex items-center gap-4 p-6">
                   <button
                     type="button"
@@ -286,8 +284,8 @@ export const Profile = () => {
                     <p className="mt-0.5 text-sm text-[#636363]">
                       {displayProfile.userRole}
                     </p>
-                    <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-mono font-semibold text-[#00808d]">
-                      <IconVerify /> Verified User
+                    <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#00808d]">
+                      <IconVerify /> Verified Pharmacist
                     </span>
                   </div>
                 </div>
@@ -323,8 +321,8 @@ export const Profile = () => {
                 </div>
               </div>
 
-              <div className="flex w-full flex-col gap-5 lg:w-80 xl:w-96">
-                <div className="rounded-xl border border-[#e6e6e6] bg-white p-6">
+              <div className="flex w-full flex-col gap-5 lg:w-[38%] lg:pr-10">
+                <div className="rounded-xl border border-[#e6e6e6] bg-white p-10">
                   <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-[#1e1e1e]">
                     <IconRibbon /> Preferences
                   </h3>
@@ -345,7 +343,6 @@ export const Profile = () => {
                         displayProfile.recentActivity.map((item, index) => (
                           <div key={`${item.action}-${item.timestamp || index}`}>
                             <p className="text-sm">• {item.action}</p>
-
                             {item.timestamp && (
                               <p className="text-xs text-[#6b7280]">
                                 {formatActivityTime(item.timestamp)} PT

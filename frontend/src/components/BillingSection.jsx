@@ -8,20 +8,22 @@ const PanelHeader = ({
   saveLabel = 'Save Changes',
   saving = false,
 }) => (
-  <div className="mb-8 flex items-center justify-between">
-    <h2 className="text-[18px] font-bold text-[#1e1e1e]">{title}</h2>
-    <div className="flex items-center gap-2">
+  <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+    <h2 className="pt-1 text-[22px] font-bold text-[#1e1e1e] lg:text-[22px]">
+      {title}
+    </h2>
+    <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
       <button
         type="button"
         onClick={onCancel}
-        className="rounded-md border border-[#00808d] bg-white px-4 py-2 text-sm font-medium text-[#00808d] transition hover:bg-[#f4fbfc]"
+        className="rounded-md border border-[#d2d2d2] bg-white px-4 py-[7px] text-sm font-medium text-[#1e1e1e] transition hover:bg-[#f5f5f5]"
       >
         Cancel
       </button>
       <button
         type="button"
         onClick={onSave}
-        className="rounded-md bg-[#00808d] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#006d77]"
+        className="rounded-md bg-[#00808d] px-4 py-[7px] text-sm font-medium text-white transition hover:bg-[#006d77]"
       >
         {saving ? 'Saving...' : saveLabel}
       </button>
@@ -35,28 +37,29 @@ const INVOICES = [
   { date: 'Paracetamol 500mg', invoice: '#648154', amount: '$25.80', download: 'CSV...' },
 ];
 
-function BillingSection() {
+function BillingSection({ onCancel }) {
   return (
-    <div>
-      <PanelHeader title="Billing" onCancel={() => {}} onSave={() => {}} />
+    <div className="w-full">
+     <PanelHeader title="Billing" onCancel={onCancel} onSave={() => {}} />
 
-      <p className="mb-3 text-sm font-bold text-[#1e1e1e]">Professional Plan</p>
-      <div className="mb-6 rounded-xl border border-[#e6e6e6] bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <p className="mb-3 text-[16px] font-bold text-[#1e1e1e]">Professional Plan</p>
+      <div className="mb-7 w-full rounded-2xl border border-[#e6e6e6] bg-white px-4 py-5">
+        <div className="mb-4 flex items-center justify-between">
           <span className="flex items-center gap-2 text-sm text-[#4f5250]">
             <FiRefreshCw size={18} color="#00808d" />
             Renewal Date: August, 2027
           </span>
-          <span className="text-lg font-bold text-[#1e1e1e]">$65/monthly</span>
+          <span className="text-[18px] font-bold text-[#1e1e1e]">$65/monthly</span>
         </div>
-        <div className="h-4 overflow-hidden rounded-full bg-[#e6e6e6]">
-          <div className="h-full w-3/4 rounded-full bg-[#d2d2d2]" />
+
+        <div className="h-8 bg-[#efefef] px-4 py-[6px]">
+          <div className="h-full w-[86%] bg-[#d9d9d9]" />
         </div>
       </div>
 
-      <p className="mb-3 text-sm font-bold text-[#1e1e1e]">Payment Method</p>
-      <div className="mb-6 rounded-xl border border-[#e6e6e6] bg-white p-4">
-        <div className="mb-3 flex items-center justify-end gap-3">
+      <p className="mb-3 text-[16px] font-bold text-[#1e1e1e]">Payment Method</p>
+      <div className="mb-7 w-full rounded-2xl border border-[#e6e6e6] bg-white px-4 py-4">
+        <div className="mb-3 flex items-center justify-end gap-5">
           <button type="button">
             <FiEdit2 size={18} color="#00808d" />
           </button>
@@ -65,39 +68,44 @@ function BillingSection() {
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex h-7 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded border border-[#e6e6e6] bg-white">
+        <div className="flex items-center gap-4">
+          <div className="flex h-8 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded border border-[#e6e6e6] bg-white">
             <div className="flex">
               <div className="h-4 w-4 rounded-full bg-red-500 opacity-90" />
               <div className="-ml-2 h-4 w-4 rounded-full bg-yellow-400 opacity-90" />
             </div>
           </div>
-          <p className="text-sm font-semibold text-[#1e1e1e]">
-            MasterCard <span className="text-[#a6a6a6]">•••• •••• ••••</span> 5494
-          </p>
-        </div>
 
-        <div className="mt-2 flex gap-6 text-sm text-[#4f5250]">
-          <span>Exp: 5/2028</span>
-          <span>Steven Rothschild</span>
+          <div>
+            <p className="text-sm font-semibold text-[#1e1e1e]">
+              MasterCard <span className="mx-1 text-[#636363]">● ● ● ●</span>
+              <span className="mx-1 text-[#636363]">● ● ● ●</span>
+              <span className="mx-1 text-[#636363]">● ● ● ●</span> 5494
+            </p>
+
+            <div className="mt-3 flex gap-8 text-sm text-[#4f5250]">
+              <span>Exp: 5/2028</span>
+              <span>Steven Rothschild</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-bold text-[#1e1e1e]">Invoices</p>
-        <button type="button" className="text-sm font-bold text-[#1e1e1e]">
+        <p className="text-[16px] font-bold text-[#1e1e1e]">Invoices</p>
+        <button type="button" className="text-[16px] font-bold text-[#1e1e1e]">
           View Billing History
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-[#e6e6e6] bg-white">
+      <div className="w-full overflow-x-auto rounded-2xl border border-[#e6e6e6] bg-white">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#e6e6e6]">
               {['Date', 'Invoice#', 'Amount', 'Download'].map((h) => (
                 <th
                   key={h}
-                  className="px-4 py-3 text-left font-semibold text-[#636363]"
+                  className="px-6 py-4 text-left font-semibold text-[#636363]"
                 >
                   {h}
                 </th>
@@ -107,10 +115,10 @@ function BillingSection() {
           <tbody>
             {INVOICES.map((row, i) => (
               <tr key={i} className={i > 0 ? 'border-t border-[#e6e6e6]' : ''}>
-                <td className="px-4 py-3 text-[#4f5250]">{row.date}</td>
-                <td className="px-4 py-3 text-[#4f5250]">{row.invoice}</td>
-                <td className="px-4 py-3 text-[#4f5250]">{row.amount}</td>
-                <td className="px-4 py-3 text-[#4f5250]">{row.download}</td>
+                <td className="px-6 py-4 text-[#4f5250]">{row.date}</td>
+                <td className="px-6 py-4 text-[#4f5250]">{row.invoice}</td>
+                <td className="px-6 py-4 text-[#4f5250]">{row.amount}</td>
+                <td className="px-6 py-4 text-[#4f5250]">{row.download}</td>
               </tr>
             ))}
           </tbody>

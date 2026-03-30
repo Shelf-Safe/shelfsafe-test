@@ -189,6 +189,16 @@ export const Inventory = () => {
     if (params.get('add') === '1') setModalOpen(true);
   }, [location.search]);
 
+  const inventoryView = useMemo(() => {
+    const v = new URLSearchParams(location.search).get('view');
+    if (v === 'expiring' || v === 'expired' || v === 'high-risk' || v === 'low-stock') return v;
+    return null;
+  }, [location.search]);
+
+  useEffect(() => {
+    if (inventoryView) setPage(1);
+  }, [inventoryView]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -201,7 +211,7 @@ export const Inventory = () => {
           setLoadingInventory(false);
           setRefreshing(true);
         }
-      } catch {}
+      } catch { }
     }
 
     async function loadInventory() {
@@ -259,6 +269,24 @@ export const Inventory = () => {
     const matchExpiry = !filterExpiry || expLabel === filterExpiry;
     const matchCategory = filterCategories.length === 0 || filterCategories.includes(m.category);
     const matchExpired = !onlyExpired || m.status === 'Expired';
+
+    if (inventoryView === 'expiring') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const soon = new Date(today);
+      soon.setDate(soon.getDate() + 30);
+      const exp = m.expiryDate ? new Date(m.expiryDate) : null;
+      if (!exp || Number.isNaN(exp.getTime())) return false;
+      exp.setHours(0, 0, 0, 0);
+      if (exp < today || exp > soon) return false;
+    }
+    if (inventoryView === 'expired' && m.status !== 'Expired') return false;
+    if (inventoryView === 'high-risk') {
+      const r = m.risk || 'Low';
+      if (!['Medium', 'High', 'Critical'].includes(r)) return false;
+    }
+    if (inventoryView === 'low-stock' && m.status !== 'Low Stock' && m.status !== 'Out of Stock') return false;
+
     return matchSearch && matchStatus && matchExpiry && matchCategory && matchExpired;
   });
 
@@ -267,7 +295,6 @@ export const Inventory = () => {
   const slice = filtered.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
 
   const resetPage = () => setPage(1);
-
 
   const voiceState = useMemo(() => ({
     visibleMedications: slice.map((item) => item.medicationName).filter(Boolean),
@@ -317,10 +344,10 @@ export const Inventory = () => {
           v.setPage(1);
           break;
         case 'INVENTORY_NEXT_PAGE':
-          v.setPage((p) => Math.min(v.totalPages, p + 1));
+          v.setPage((prev) => Math.min(v.totalPages, prev + 1));
           break;
         case 'INVENTORY_PREV_PAGE':
-          v.setPage((p) => Math.max(1, p - 1));
+          v.setPage((prev) => Math.max(1, prev - 1));
           break;
         case 'INVENTORY_FILTER_LOW_STOCK':
           v.setFilterStatus('Low Stock');
@@ -366,7 +393,7 @@ export const Inventory = () => {
   return (
     <DashboardLayout headerRight={<UserChip user={user} />}>
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-        <h1 className="text-[52px] md:text-[56px] leading-none font-bold text-gray-900 m-0">Inventory</h1>
+        <h1 className="text-[52px] md:text-[35px] leading-none font-bold text-gray-900 m-0">Inventory</h1>
         <button onClick={() => setModalOpen(true)} className="px-6 py-3 rounded-xl text-white font-semibold text-[18px] md:text-sm bg-[#00808d] hover:opacity-90">Add Medication</button>
       </div>
 

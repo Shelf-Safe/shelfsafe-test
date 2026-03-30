@@ -83,10 +83,6 @@ function NavContent({ onClose, mobileActiveClass, iconSize, iconAlwaysTeal, isMo
           </NavLink>
         ))}
       </nav>
-
-      <div className="px-3 pb-5 pt-2">
-        <VoiceLauncher />
-      </div>
     </div>
   );
 }
@@ -118,6 +114,9 @@ export const Sidebar = ({ mobileHeaderRight }) => {
         aria-label="Sidebar"
       >
         <NavContent onClose={() => {}} />
+        <div className="px-3 pb-5 pt-2">
+          <VoiceLauncher />
+        </div>
       </aside>
 
       {/* ── Mobile top bar ─────────────────────────────────────────────────── */}

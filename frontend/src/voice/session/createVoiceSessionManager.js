@@ -1,11 +1,12 @@
 import { createVoiceLogger } from '../utils/voiceLogger';
 
-export function createVoiceSessionManager({ provider, onVoiceStateChange, onTranscript, onError } = {}) {
+export function createVoiceSessionManager({ provider, onVoiceStateChange, onTranscript, onError, shouldRecoverChainSession } = {}) {
   const log = createVoiceLogger('Session');
   let session = null;
   let stoppedByUser = false;
   let listeningMode = 'single';
   let restartTimer = null;
+  let lastStartAt = 0;
 
   function clearRestartTimer() {
     if (restartTimer) {
@@ -25,11 +26,14 @@ export function createVoiceSessionManager({ provider, onVoiceStateChange, onTran
   function scheduleChainRecovery() {
     clearRestartTimer();
     restartTimer = window.setTimeout(() => {
-      if (!stoppedByUser && listeningMode === 'chain') {
+      const shouldRecover = typeof shouldRecoverChainSession === 'function' ? shouldRecoverChainSession() : true;
+      if (!stoppedByUser && listeningMode === 'chain' && shouldRecover) {
         log.info('Restarting chain session');
         startSession('chain');
+      } else {
+        onVoiceStateChange?.('idle');
       }
-    }, 180);
+    }, 420);
   }
 
   function startSession(mode = 'single') {
@@ -41,6 +45,7 @@ export function createVoiceSessionManager({ provider, onVoiceStateChange, onTran
     stoppedByUser = false;
     listeningMode = mode;
     stopSession();
+    lastStartAt = Date.now();
 
     log.info('Starting session', { mode });
     session = provider.createSession({
@@ -55,7 +60,8 @@ export function createVoiceSessionManager({ provider, onVoiceStateChange, onTran
       },
       onEnd: () => {
         session = null;
-        if (!stoppedByUser && listeningMode === 'chain') {
+        const livedMs = Date.now() - lastStartAt;
+        if (!stoppedByUser && listeningMode === 'chain' && livedMs >= 150) {
           scheduleChainRecovery();
           return;
         }

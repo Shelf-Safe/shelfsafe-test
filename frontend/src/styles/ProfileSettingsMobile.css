@@ -7,35 +7,27 @@
     display: none;
   }
 
-  .ps-panel-inner {
-    max-width: 100% !important;
+  .ps-panel {
+    padding: 22px 30px 34px !important;
+    background: #f5f5f5 !important;
+    min-width: 0;
+    overflow-x: hidden;
   }
 
-  .ps-panel {
-    padding: 0 !important;
-    background: #ffffff !important;
+  .ps-panel-inner {
+    max-width: 100% !important;
+    padding-right: 0 !important;
   }
 
   .ps-account-wrap {
-    padding: 0 16px 24px;
-  }
-
-  .ps-account-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 20px !important;
-    padding-top: 0;
-  }
-
-  .ps-account-actions {
-    width: 100%;
-    justify-content: flex-end;
+    padding: 6px 0 24px;
   }
 
   .ps-account-profile {
-    gap: 12px;
-    margin-bottom: 20px !important;
+    gap: 16px;
+    margin-bottom: 24px !important;
+    align-items: center;
+    padding-left: 14px;
   }
 
   .ps-account-avatar {
@@ -60,7 +52,40 @@
   }
 
   .ps-account-wrap label {
-    font-size: 13px;
+    font-size: 14px;
+  }
+
+  .ps-notif-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+    margin-bottom: 20px !important;
+  }
+
+  .ps-notif-title {
+    width: 100%;
+    text-align: left !important;
+    align-self: flex-start !important;
+    margin: 0 !important;
+    padding-top: 0 !important;
+    font-size: 22px !important;
+    line-height: 1.2;
+  }
+
+  .ps-notif-subtitle {
+    width: 100%;
+    text-align: left !important;
+    font-size: 14px !important;
+    line-height: 1.6;
+  }
+
+  .ps-notif-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 }
 

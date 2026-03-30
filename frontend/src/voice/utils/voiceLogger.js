@@ -3,9 +3,26 @@ const INFO_ENABLED = String(import.meta.env.VITE_VOICE_INFO_LOGS || 'true') === 
 const FILE_LOGGING_ENABLED = String(import.meta.env.VITE_VOICE_FILE_LOGGING || 'false') === 'true';
 const FILE_LOG_LIMIT = Math.max(100, Number(import.meta.env.VITE_VOICE_FILE_LOG_MAX || 800) || 800);
 const FILE_LOG_STORAGE_KEY = 'shelfsafe:voice:file-logs';
+const ACTIVE_SESSION_KEY = '__SHELFSAFE_VOICE_ACTIVE_SESSION__';
+
+function readActiveSessionId() {
+  if (typeof window === 'undefined') return '';
+  return String(window[ACTIVE_SESSION_KEY] || '').trim();
+}
+
+export function setActiveVoiceLogSession(sessionId = '') {
+  if (typeof window === 'undefined') return;
+  window[ACTIVE_SESSION_KEY] = String(sessionId || '').trim();
+}
+
+export function clearActiveVoiceLogSession() {
+  if (typeof window === 'undefined') return;
+  window[ACTIVE_SESSION_KEY] = '';
+}
 
 function prefix(scope) {
-  return `[Voice][${scope}]`;
+  const sessionId = readActiveSessionId();
+  return sessionId ? `[Voice][${scope}][${sessionId}]` : `[Voice][${scope}]`;
 }
 
 function safeSerialize(value) {
@@ -53,6 +70,7 @@ function appendFileLog(level, scope, args) {
     ts: new Date().toISOString(),
     level,
     scope,
+    sessionId: readActiveSessionId(),
     args: args.map(safeSerialize),
   };
   const buffer = readFileLogBuffer();
@@ -70,7 +88,7 @@ function exposeFileLogHelpers() {
       if (!FILE_LOGGING_ENABLED) return 'Voice file logging is disabled.';
       const entries = readFileLogBuffer();
       const body = entries
-        .map((entry) => `${entry.ts} [${entry.level}] [${entry.scope}] ${entry.args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')}`)
+        .map((entry) => `${entry.ts} [${entry.level}] [${entry.scope}]${entry.sessionId ? ` [${entry.sessionId}]` : ''} ${entry.args.map((arg) => typeof arg === 'string' ? arg : JSON.stringify(arg)).join(' ')}`)
         .join('\n');
       const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -91,6 +109,9 @@ function exposeFileLogHelpers() {
     },
     read() {
       return readFileLogBuffer();
+    },
+    currentSession() {
+      return readActiveSessionId();
     },
     storageKey: FILE_LOG_STORAGE_KEY,
     maxEntries: FILE_LOG_LIMIT,

@@ -4,6 +4,8 @@ export function createVoiceRuntimeStore(initialValue = {}) {
     routePath: '/dashboard',
     listeningMode: 'single',
     lastHeard: '',
+    sessionId: '',
+    lastCommand: null,
     ...initialValue,
   };
 
@@ -21,6 +23,8 @@ export function createVoiceRuntimeStore(initialValue = {}) {
         routePath: '/dashboard',
         listeningMode: 'single',
         lastHeard: '',
+        sessionId: '',
+        lastCommand: null,
       };
       return { ...state };
     },

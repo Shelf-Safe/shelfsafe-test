@@ -19,7 +19,7 @@ const providers = [
   { key: 'propel', name: 'Propel OS', logoUrl: '/pos-logos/PropelOS.png' },
 ];
 
-const POS_API_BASE_URL = (process.env.POS_API_BASE_URL || 'https://shelfsafe-pos.vercel.app').trim();
+const POS_API_BASE_URL = process.env.POS_API_BASE_URL || ' https://shelfsafe-pos.vercel.app' || 'http://localhost:4010';
 
 async function posRequest(endpoint, options = {}) {
   const response = await fetch(`${POS_API_BASE_URL}${endpoint}`, options);
@@ -117,15 +117,54 @@ async function getInventoryStatsForOrg(orgId) {
   return evaluateInventoryNotifications(medications);
 }
 
+
+function getInventoryAlertRecipient(user) {
+  if (!user) {
+    console.log('Inventory alert skipped: no user');
+    return null;
+  }
+
+  console.log('Loaded user notifications:', user.notifications);
+
+const emailEnabled = user.notifications?.emailEnabled ?? true;
+  console.log('Resolved emailEnabled:', emailEnabled, 'type:', typeof emailEnabled);
+
+  if (!emailEnabled) {
+    console.log('Inventory alert skipped: email notifications disabled');
+    return null;
+  }
+
+  const preferredEmail = user.notifications?.emailAddress?.trim();
+  if (preferredEmail) {
+    console.log('Inventory alert recipient from preferences:', preferredEmail);
+    return preferredEmail;
+  }
+
+  const accountEmail = user.email?.trim();
+  if (accountEmail) {
+    console.log('Inventory alert recipient from account email:', accountEmail);
+    return accountEmail;
+  }
+
+  console.log('Inventory alert skipped: no valid email found');
+  return null;
+}
+
+
 async function sendInventoryAlert({ user, stats }) {
   const { expiredCount, expiringSoonCount, thresholdCrossed } = stats;
 
-  if (!user?.email) return;
+  const recipientEmail = getInventoryAlertRecipient(user);
+
+  if (!recipientEmail) {
+    return;
+  }
+
 
   //  Critical alert
   if (thresholdCrossed) {
     await sendEmail({
-      to: user.email,
+      to: recipientEmail,
       subject: '🚨 ShelfSafe Alert: High Expired Inventory',
       html: `
         <h2>Critical Inventory Alert</h2>
@@ -138,7 +177,7 @@ async function sendInventoryAlert({ user, stats }) {
   //  Warning alert
   else if (expiringSoonCount > 0) {
     await sendEmail({
-      to: user.email,
+      to: recipientEmail,
       subject: '⚠️ ShelfSafe: Items Expiring Soon',
       html: `
         <h2>Upcoming Expiry Alert</h2>
