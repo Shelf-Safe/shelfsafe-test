@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mentor Focus Board</title>
+  <meta name="description" content="Interactive mentor board for ranking software pathways and skill priorities." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <header class="topbar glass">
+    <div class="brand">
+      <div class="brand__mark">MF</div>
+      <div>
+        <p class="eyebrow">For mentor interaction</p>
+        <h1>Mentor Focus Board</h1>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <button id="saveBtn" class="btn btn--ghost">Save</button>
+      <button id="summaryBtn" class="btn btn--primary">Generate Summary</button>
+      <button id="exportBtn" class="btn btn--ghost">Export</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero glass">
+      <div class="hero__left">
+        <p class="eyebrow">Interactive career conversation</p>
+        <h2>Sort what matters.<br>Guide the student visually.</h2>
+        <p class="hero__copy">This page is designed for a mentor to quickly assess role paths and core skills, then drag the most important ones into focus lanes.</p>
+        <div class="hero__chips">
+          <span>Drag sideways</span>
+          <span>Paths</span>
+          <span>Skills</span>
+          <span>Notes</span>
+          <span>90-day output</span>
+        </div>
+      </div>
+      <div class="hero__right panel-soft">
+        <div class="mini-grid">
+          <article>
+            <span>Project</span>
+            <strong>ShelfSafe</strong>
+          </article>
+          <article>
+            <span>Purpose</span>
+            <strong>Mentor-guided focus</strong>
+          </article>
+          <article>
+            <span>Ask</span>
+            <strong>What matters first?</strong>
+          </article>
+          <article>
+            <span>Mode</span>
+            <strong>Compact + visual</strong>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-head">
+      <div>
+        <p class="eyebrow">Quick context</p>
+        <h2>What the mentor should know</h2>
+      </div>
+    </section>
+
+    <section class="context-strip">
+      <article class="glass context-card">
+        <span class="context-card__icon">🚀</span>
+        <div>
+          <h3>Current build</h3>
+          <input id="currentBuild" type="text" placeholder="ShelfSafe, portfolio work, strongest demo..." />
+        </div>
+      </article>
+      <article class="glass context-card">
+        <span class="context-card__icon">🎯</span>
+        <div>
+          <h3>Main goal</h3>
+          <input id="mainGoal" type="text" placeholder="Find the best role direction and skill priorities" />
+        </div>
+      </article>
+      <article class="glass context-card">
+        <span class="context-card__icon">⚡</span>
+        <div>
+          <h3>Strengths</h3>
+          <input id="strengths" type="text" placeholder="Rapid prototyping, presentations, React, system thinking" />
+        </div>
+      </article>
+      <article class="glass context-card">
+        <span class="context-card__icon">🧩</span>
+        <div>
+          <h3>Need guidance on</h3>
+          <input id="needGuidance" type="text" placeholder="LeetCode, backend depth, positioning, roadmap" />
+        </div>
+      </article>
+    </section>
+
+    <section class="section-head">
+      <div>
+        <p class="eyebrow">Main interaction</p>
+        <h2>Mentor workspace</h2>
+      </div>
+      <p class="section-text">Cards stay on the left. Focus lanes stay on the right for easier sideways drag and drop.</p>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace__library">
+        <article class="glass library-card">
+          <div class="library-card__head">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h3>Career pathways</h3>
+            </div>
+            <span class="pill" id="pathCount">0 items</span>
+          </div>
+
+          <div class="toolbar toolbar--library">
+            <div id="categoryTabs" class="tabs"></div>
+            <label class="search">
+              <span>⌕</span>
+              <input id="pathSearch" type="search" placeholder="Search paths" />
+            </label>
+          </div>
+
+          <div class="path-grid" id="pathGrid"></div>
+        </article>
+
+        <article class="glass library-card">
+          <div class="library-card__head compact-head">
+            <div>
+              <p class="eyebrow">Step 2</p>
+              <h3>Foundations</h3>
+            </div>
+            <span class="mini-pill mini-pill--violet">Drag these too</span>
+          </div>
+          <div id="foundationTray" class="foundation-tray"></div>
+        </article>
+      </div>
+
+      <aside class="workspace__focus">
+        <article class="glass focus-card">
+          <div class="focus-card__head">
+            <div>
+              <p class="eyebrow">Step 3</p>
+              <h3>Focus lanes</h3>
+              <p class="focus-card__copy">The mentor drags items sideways into the right lane: focus now, build next, explore later, or skip for now.</p>
+            </div>
+          </div>
+
+          <div class="mini-help">
+            <div><span>🖱️</span> drag card</div>
+            <div><span>➡️</span> drop to lane</div>
+            <div><span>✍️</span> add notes below</div>
+          </div>
+
+          <section class="board" id="board"></section>
+        </article>
+      </aside>
+    </section>
+
+    <section class="section-head">
+      <div>
+        <p class="eyebrow">Step 4</p>
+        <h2>Mentor notes</h2>
+      </div>
+      <p class="section-text">Quick prompts and editable notes for the live conversation.</p>
+    </section>
+
+    <section class="notes-layout">
+      <article class="glass notes-card">
+        <h3>Prompt cards</h3>
+        <div id="questionCards" class="question-cards"></div>
+      </article>
+      <article class="glass notes-card">
+        <h3>Live notes</h3>
+        <textarea id="mentorNotes" rows="14" placeholder="Titles to target, what to skip, best strengths to lean on, portfolio advice, hiring tips..."></textarea>
+      </article>
+    </section>
+
+    <section class="section-head">
+      <div>
+        <p class="eyebrow">Step 5</p>
+        <h2>Outcome</h2>
+      </div>
+    </section>
+
+    <section class="outcome-grid">
+      <article class="glass outcome-card">
+        <h3>Focus now</h3>
+        <div id="focusNowOutput" class="output-block empty">Generate summary</div>
+      </article>
+      <article class="glass outcome-card">
+        <h3>Build next</h3>
+        <div id="buildNextOutput" class="output-block empty">Generate summary</div>
+      </article>
+      <article class="glass outcome-card">
+        <h3>Explore later</h3>
+        <div id="exploreLaterOutput" class="output-block empty">Generate summary</div>
+      </article>
+      <article class="glass outcome-card">
+        <h3>90-day direction</h3>
+        <div id="planOutput" class="output-block empty">Generate summary</div>
+      </article>
+    </section>
+  </main>
+
+  <template id="pathTemplate">
+    <article class="item-card item-card--path" draggable="true">
+      <div class="item-card__icon"></div>
+      <div class="item-card__body">
+        <div class="item-card__top">
+          <h3 class="item-card__title"></h3>
+          <span class="mini-pill item-card__category"></span>
+        </div>
+        <p class="item-card__summary"></p>
+        <div class="item-card__tags"></div>
+      </div>
+    </article>
+  </template>
+
+  <template id="foundationTemplate">
+    <button class="foundation-chip" draggable="true" type="button">
+      <span class="foundation-chip__icon"></span>
+      <span class="foundation-chip__label"></span>
+    </button>
+  </template>
+</body>
+</html>

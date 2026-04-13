@@ -1,0 +1,10 @@
+Local quick start:
+1. cd career-compass-v2
+2. python3 -m http.server 8080
+3. open http://localhost:8080
+
+Vercel:
+1. Upload folder to GitHub
+2. Import repo into Vercel
+3. Keep build settings empty for a static site
+4. Deploy
